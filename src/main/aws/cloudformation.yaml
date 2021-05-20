@@ -32,7 +32,7 @@ Parameters:
     Type: String
     
   domainName:
-    Default: openapi-to-puml.davidmoten.org
+    Default: onetimelink.davidmoten.org
     Type: String
 
 Resources:
