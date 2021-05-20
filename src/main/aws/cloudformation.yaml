@@ -1,0 +1,288 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+
+  stage:
+    Default: dev
+    Description: api stage
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    
+  artifactBucket:
+    Default: artifacts
+    Type: String
+  
+  artifactObjectName:
+    Default: artifact-6.0-SNAPSHOT.jar
+    Type: String
+    
+  application:
+    Default: application
+    Type: String
+    
+  handler:
+    Type: String
+    
+  path: 
+    Default: do
+    Type: String
+    
+  siteBucketName:
+    Type: String
+    
+  domainName:
+    Default: openapi-to-puml.davidmoten.org
+    Type: String
+
+Resources:
+
+# 	arn:aws:acm:ap-southeast-2:791394749990:certificate/3f65b280-6024-47d4-a36d-0d75623adc65
+
+  ## install the public bucket that serves the docs
+  BucketCtsGatewayPublicResources:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub "${siteBucketName}"
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+
+  LambdaFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${application}'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Sub '${artifactBucket}'
+        S3Key: !Sub '${artifactObjectName}'
+      FunctionName: !Sub '${application}'
+      Handler: !Sub '${handler}'
+      MemorySize: 512
+      Timeout: 300 # seconds
+      Role: !GetAtt 
+        - LambdaFunctionRole
+        - Arn
+      Runtime: java8
+      Environment:
+        Variables:
+          WHO: !Sub "${application}"
+             
+  ## give the /do api gateway resource permission to execute the lambda
+  ApiGatewayInvokeApiGetLambdaPermission: 
+    Type: "AWS::Lambda::Permission"
+    DependsOn:
+    - RestApi
+    - LambdaFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunction
+      Principal: apigateway.amazonaws.com
+      ## * below allows the Aws Console API Gateway Test to work. 
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/POST/${path}"
+      
+  ## create the deployment of a stage (so that the stage is published to an https url)
+  ApiDeployment:
+    Type: "AWS::ApiGateway::Deployment"
+    Properties:
+      Description: !Sub "deployment of stage ${stage}"
+      RestApiId:
+        Ref: RestApi
+      StageName: !Sub "${stage}Dummy" # must be different from stage name below (see https://blog.jayway.com/2016/08/17/introduction-to-cloudformation-for-api-gateway/)
+  
+  ## create the stage
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: 
+        Ref: ApiDeployment
+      Description: !Sub "stage for ${stage}"
+      MethodSettings:
+        - ResourcePath: !Sub "/${path}"
+          HttpMethod: POST
+          MetricsEnabled: 'true'
+          #DataTraceEnabled: 'true'
+          ThrottlingBurstLimit: '999'
+          #LoggingLevel: INFO
+      RestApiId: 
+        Ref: RestApi
+      StageName: !Sub "${stage}"
+        
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${application}"
+      Description: !Sub "${application} rest api"
+      FailOnWarnings: true
+      Body:
+        openapi: "3.0.0"
+        info:
+          version: "2017-03-30T22:50:37Z"
+          title: "${application}"
+        paths:
+          /site/{proxy+}:
+            x-amazon-apigateway-any-method:
+              produces:
+              - "application/json"
+              parameters:
+              - name: "proxy"
+                in: "path"
+                required: true
+                type: "string"
+              responses: {}
+              x-amazon-apigateway-integration:
+                responses:
+                  default:
+                    statusCode: "200"
+                requestParameters:
+                  integration.request.path.proxy: "method.request.path.proxy"
+                uri: !Sub "http://${siteBucketName}.s3-website-${AWS::Region}.amazonaws.com/{proxy}"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "ANY"
+                cacheNamespace: "34xt32"
+                cacheKeyParameters:
+                - "method.request.path.proxy"
+                contentHandling: "CONVERT_TO_BINARY"
+                type: "http_proxy"
+          /do:
+            post:
+              requestBody:
+                 description: openapi definition in yaml format
+                 required: true
+                 content:
+                   application/yaml:
+                     schema:
+                       $ref: '#/components/schemas/StringValue'
+              responses:
+                '200':
+                  description: "200 response"
+                  content:
+                    application/json:
+                      schema:
+                        # a limitation of Api Gateway is that a $ref must be used here
+                        $ref: "#/components/schemas/PlantUml"
+                '400':
+                  description: "400 response - Bad Request"
+                  content:
+                    application/json:
+                      schema:
+                        # a limitation of Api Gateway is that a $ref must be used here
+                        $ref: "#/components/schemas/Error"
+                '500':
+                  description: "500 response - Server Exception"
+                  content:
+                    application/json:
+                      schema:
+                        $ref: "#/components/schemas/Error"
+              security: []   # No security
+              x-amazon-apigateway-integration:
+                responses:
+                  BadRequest.*:
+                    statusCode: "400"
+                  ServerException.*:
+                    statusCode: "500"
+                  default:
+                    statusCode: "200"
+                    responseTemplates:
+                      ## this bit of weirdness is so quoted text doesn't get returned (json)
+                      application/json: "#set($inputRoot = $input.path('$')) \n$inputRoot"
+                requestTemplates:
+                  application/yaml: "##  See http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html\n\
+                    ##  This template will pass through all parameters including path, querystring,\
+                    \ header, stage variables, and context through to the integration endpoint\
+                    \ via the body/payload\n#set($allParams = $input.params())\n{\n\"body-json\"\
+                    \ : $input.json('$'),\n\"params\" : {\n#foreach($type in $allParams.keySet())\n\
+                    \    #set($params = $allParams.get($type))\n\"$type\" : {\n    #foreach($paramName\
+                    \ in $params.keySet())\n    \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\"\
+                    \n        #if($foreach.hasNext),#end\n    #end\n}\n    #if($foreach.hasNext),#end\n\
+                    #end\n},\n\"stage-variables\" : {\n#foreach($key in $stageVariables.keySet())\n\
+                    \"$key\" : \"$util.escapeJavaScript($stageVariables.get($key))\"\n   \
+                    \ #if($foreach.hasNext),#end\n#end\n},\n\"context\" : {\n    \"account-id\"\
+                    \ : \"$context.identity.accountId\",\n    \"api-id\" : \"$context.apiId\"\
+                    ,\n    \"api-key\" : \"$context.identity.apiKey\",\n    \"authorizer-principal-id\"\
+                    \ : \"$context.authorizer.principalId\",\n    \"caller\" : \"$context.identity.caller\"\
+                    ,\n    \"cognito-authentication-provider\" : \"$context.identity.cognitoAuthenticationProvider\"\
+                    ,\n    \"cognito-authentication-type\" : \"$context.identity.cognitoAuthenticationType\"\
+                    ,\n    \"cognito-identity-id\" : \"$context.identity.cognitoIdentityId\"\
+                    ,\n    \"cognito-identity-pool-id\" : \"$context.identity.cognitoIdentityPoolId\"\
+                    ,\n    \"http-method\" : \"$context.httpMethod\",\n    \"stage\" : \"\
+                    $context.stage\",\n    \"source-ip\" : \"$context.identity.sourceIp\"\
+                    ,\n    \"user\" : \"$context.identity.user\",\n    \"user-agent\" : \"\
+                    $context.identity.userAgent\",\n    \"user-arn\" : \"$context.identity.userArn\"\
+                    ,\n    \"request-id\" : \"$context.requestId\",\n    \"resource-id\" :\
+                    \ \"$context.resourceId\",\n    \"resource-path\" : \"$context.resourcePath\"\
+                    \n    }\n}\n"
+                # escape the substitution using ! before stageVariables.function
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${application}/invocations"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                contentHandling: "CONVERT_TO_TEXT"
+                type: "aws"
+                
+        components:
+          schemas:
+            PlantUml:
+              type: object
+              properties:
+                puml:
+                  type: string
+                encoded:
+                  type: string
+            Error:
+              type: object
+              properties:
+                errorMessage: 
+                  type: string
+                errorType:
+                  type: string
+                stackTrace:
+                  type: array
+                  items: 
+                    type: string
+                cause:
+                  $ref: '#/components/schemas/Error'
+            StringValue:
+              type: string
+            Empty:
+              type: object
+
+  myDomainName:
+    Type: 'AWS::ApiGatewayV2::DomainName'
+    Properties:
+      DomainName: !Sub "${domainName}" # openapi-to-puml.davidmoten.org
+      DomainNameConfigurations:
+        - EndpointType: REGIONAL
+          CertificateArn: arn:aws:acm:ap-southeast-2:791394749990:certificate/3f65b280-6024-47d4-a36d-0d75623adc65
+          CertificateName: openapi-to-puml.davidmoten.org
+      
+  myMapping:
+    Type: 'AWS::ApiGateway::BasePathMapping'
+    Properties:
+      DomainName: !Ref myDomainName
+      RestApiId: !Ref RestApi
+          
+  Route53RecordSetGroup:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: Z2OZJPF5WNAGIT
+      RecordSets:
+        - Name: !Sub "${domainName}" # Your chosen subdomain
+          Type: A
+          AliasTarget:
+            HostedZoneId: !GetAtt myDomainName.RegionalHostedZoneId
+            DNSName: !GetAtt myDomainName.RegionalDomainName
