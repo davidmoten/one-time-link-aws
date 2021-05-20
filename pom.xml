@@ -27,6 +27,12 @@
             <artifactId>aws-lambda-java-core</artifactId>
             <version>1.2.1</version>
         </dependency>
+        
+        <dependency>
+            <groupId>com.github.davidmoten</groupId>
+            <artifactId>aws-helper</artifactId>
+            <version>0.2.3</version>
+        </dependency>
 
         <dependency>
             <groupId>junit</groupId>
@@ -34,6 +40,7 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
+        
     </dependencies>
     <build>
         <finalName>${project.artifactId}</finalName>

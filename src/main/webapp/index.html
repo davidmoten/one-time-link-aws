@@ -1,264 +1,177 @@
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OAS3 to PlantUML</title>
-
-<!-- prevent loading of favicon.ico -->
-<link rel="icon" href="data:;base64,iVBORw0KGgo=">
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-P85S5HPDMN"></script>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" ></meta>
+<meta http-equiv="Pragma" content="no-cache" ></meta>
+<meta http-equiv="Expires" content="0" ></meta>
+<title>One Time Link</title>
+<script type="text/javascript" src="js/sjcl-1.0.8.js"></script>
+<script type="text/javascript" src="js/private-note.js"></script>
 <script>
-//////////////////////////////////////////////
-// setup google analytics
-//////////////////////////////////////////////
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
 
-gtag('config', 'G-P85S5HPDMN');
-
-//////////////////////////////////////////////
-
-function onload() {
-    document.getElementById("response").style.display='none';
-}
-
-function convert() {
-    hide(document.getElementById("response"));
-    hide(document.getElementById("error"));
-	var xhr = new XMLHttpRequest();
-	xhr.onreadystatechange = function () {
-	    if (this.readyState != 4) return;
+    // when a user hits the encrypt button 
+    // * a random id is generated that will be the reference id of the encrypted value on the server
+    // * a random password is generated that will be included in the link url with the id (concatenated)
+    // * the password is used to encrypt the text
+    // * the id, the encrypted value and the expiry time is sent to the server
+    
+    // when a user hits View on the given link
+    // * the id and password are extracted from the parameters of the link
+    // * the encrypted value is retrieved from the server using the id
+    // * the password is used to decrypt the encrypted value
+    // * the decrypted value is displayed
+    
+    // The server never sees the password of the encrypted value that it stores.
+    // The encrypted value is only retrievable once.
 	
-	    if (this.status == 200) {
-    	    var resp = JSON.parse(this.responseText);
-    	    if (resp.errorMessage!= null) {
-    	        // TODO fix api gateway integration so error response is valid json (errorMessage and errorType missing quotes)
-    	        // and returns appropriate status code
-    	        document.getElementById("error").innerHTML= "<pre>" + resp.errorType + ': ' + resp.errorMessage +  "</pre>";
-                show(document.getElementById("error"));  
-    	    } else {
-	    	    var puml = document.getElementById("puml");
-		        puml.value = resp.puml;
-		        var png = document.getElementById("png");
-		        png.href = 'https://planttext.com/api/plantuml/img/' + resp.encoded;
-		        var svg = document.getElementById('svg'); 
-		        svg.href='https://www.planttext.com/api/plantuml/svg/' + resp.encoded;
-		        var svgimg = document.getElementById('svgimg');
-		        svgimg.src = svg.href;
-		        show(document.getElementById("response"));
+	const ID_LENGTH = 16;
+	const PASSWORD_LENGTH = 16;
+	
+	function processForm(frm) {
+
+		// The id is the reference for the encrypted value on the server
+		// but the server doesn't have the password to decrypt
+		// The password is in the url given to someone and the decryption
+		// happens in javascript so server never sees unencrypted values
+		var id = document.getElementById('id');
+		var expiryDuration = document.getElementById('expiryDuration');
+		var expiryDurationUnit = document.getElementById('expiryDurationUnit');
+		var expiryDurationMs = document.getElementById('expiryDurationMs');
+		var ms = parseInt(expiryDuration.value) * parseInt(expiryDurationUnit.value);
+		expiryDurationMs.value = "" + ms;
+		id.value = random_string(ID_LENGTH);
+		// generate password to encrypt with
+		var password = random_string(PASSWORD_LENGTH);
+		var unencrypted = document.getElementById('value');
+		var hidden = document.getElementById('encryptedValue');
+		// encrypt the value using the password
+		hidden.value = encrypt(password, unencrypted.value);
+
+		const data = {};
+		
+		for (let input of frm) {
+		  if (input.name && input.value) {
+		    data[input.name] = input.value
+		  }
+		}
+		
+		var result = document.getElementById('result');
+		result.innerHTML = "Sending...";
+		var resultDiv = document.getElementById('resultDiv');
+		
+		fetch(frm.action, {
+		  method: frm.method,
+		  body: JSON.stringify(data)
+		}).then(function(res) {
+		  if (res.ok) {
+		    console.log(JSON.stringify(res));
+            var u = document.baseURI + "?key=" + password + id.value;
+		    result.innerHTML = '<a href="' + u + '" id="url">' + u + '</a>';
+		    unencrypted.value = '';
+		  } else {
+		    console.log("error", res);
+		    result.innerHTML = "Error, try again";
+		  }
+		  resultDiv.style.display='block';
+		});
+		return false;
+    }
+	
+	function getUrlVars() {
+	    var vars = {};
+	    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+	        vars[key] = value;
+	    });
+	    return vars;
+	}
+	
+	function getUrlParam(parameter, defaultvalue){
+	    var urlparameter = defaultvalue;
+	    if(window.location.href.indexOf(parameter) > -1){
+	        urlparameter = getUrlVars()[parameter];
 	        }
-	    } else {
-	        document.getElementById("error").innerHTML= "<pre>Returned status code: " + this.status + "\n" + JSON.stringify(JSON.parse(this.responseText), null, 4) + "</pre>";
-	        show(document.getElementById("error"));
-	    }
-    };
-	xhr.open("POST", "../do", true);
-	var oas = document.getElementById("oas").value;
-	var contentType;
-	if (oas.trim().startsWith("{")) {
-	    contentType = 'application/yaml';
-	} else {
-	    contentType = 'application/yaml';
-	}      
-	xhr.setRequestHeader('Content-Type', contentType);
-	xhr.send(oas);
-}
+	    return urlparameter;
+	}
+	
+	function initialize() {
+		var id = getUrlParam('id', '');
+		if (id.length > 0) {
+			document.getElementById('encrypt').style.display='none';
+			document.getElementById('decrypt').style.display='block';
+		} else {
+			document.getElementById('encrypt').style.display='block';
+			document.getElementById('decrypt').style.display='none';
+		}
+	    console.log("init run");
+	}
+	
+	function view(viewButton) {
+		var d = document.getElementById('decrypted');
+		var p = getUrlParam('id', '');
+		var id = p.substring(PASSWORD_LENGTH, PASSWORD_LENGTH + ID_LENGTH);
+		var password = p.substring(0, PASSWORD_LENGTH);
+		fetch('../get?key=' + id, {
+			  method: 'GET'
+			})
+			.then(function (res) {
+				if (res.status == 410) {
+					d.value = "Value not found, it has already been read or has expired."
+				} else if (res.status != 200) {
+					d.value = "An error occurred: status code="+ res.status + ", reason: " + "?";
+				} else {
+					viewButton.value = "Loading...";
+					res.text().then(function (x) {
+						d.value = decrypt(password, x);	
+						document.getElementById("viewButtonDiv").style.display='none';
+					}).catch(function (error) {
+						d.value = error;
+						viewButton.value = "View";
+					});
+				}
+			})
+			.catch(function (error) {
+				d.value = error;
+			});
+		d.style.display='block';
+	}
 
-function show(element) {
-    element.style.display = 'block';
-}
-
-function hide(element) {
-    element.style.display = 'none';
-}    
+    function copy() {
+        var d = document.getElementById('url');
+        copyToClipboard(d.href);
+    }
+	
+	window.onload = initialize;
 </script>
 </head>
-<body onload="onload()">
-<h2>Convert OpenApi 3.0 definitions to Plant UML</h2>
-<p>Uses the <a href="https://github.com/davidmoten/openapi-to-plantuml">openapi-to-plantuml</a> java library 
-to convert to PlantUML text. This website source is 
-<a href="https://github.com/davidmoten/openapi-to-plantuml-aws-api">here</a>. Any issues can be raised at 
-the appropriate one of those GitHub projects. With thanks to <a href="https://www.planttext.com/">PlantText</a>
-for image generation.</p>
-<p>Version: <a href="https://github.com/davidmoten/openapi-to-plantuml-aws-api/tree/${project.version}">${project.version}</a></p>
-<p><b>Instructions:</b></p>
-<ul>
-<li>Paste your OpenAPI definition below</li>
-<li>Click <b>Convert</b></li>
-<li>Scroll down to view the generated PlantUML supplemented class diagram and the PlantUML text</li>
-</ul>
-<p><b>OpenAPI definition (yaml):<b></p>
-<textarea id="oas" style="width:100%;height:40%">
-openapi: "3.0.0"
-info:
-  version: 1.0.0
-  title: Swagger Petstore
-  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
-  termsOfService: http://swagger.io/terms/
-  contact:
-    name: Swagger API Team
-    email: apiteam@swagger.io
-    url: http://swagger.io
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
-servers:
-  - url: http://petstore.swagger.io/api
-paths:
-  /pets:
-    get:
-      description: |
-        Returns all pets from the system that the user has access to
-        Nam sed condimentum est. Maecenas tempor sagittis sapien, nec rhoncus sem sagittis sit amet. Aenean at gravida augue, ac iaculis sem. Curabitur odio lorem, ornare eget elementum nec, cursus id lectus. Duis mi turpis, pulvinar ac eros ac, tincidunt varius justo. In hac habitasse platea dictumst. Integer at adipiscing ante, a sagittis ligula. Aenean pharetra tempor ante molestie imperdiet. Vivamus id aliquam diam. Cras quis velit non tortor eleifend sagittis. Praesent at enim pharetra urna volutpat venenatis eget eget mauris. In eleifend fermentum facilisis. Praesent enim enim, gravida ac sodales sed, placerat id erat. Suspendisse lacus dolor, consectetur non augue vel, vehicula interdum libero. Morbi euismod sagittis libero sed lacinia.
-
-        Sed tempus felis lobortis leo pulvinar rutrum. Nam mattis velit nisl, eu condimentum ligula luctus nec. Phasellus semper velit eget aliquet faucibus. In a mattis elit. Phasellus vel urna viverra, condimentum lorem id, rhoncus nibh. Ut pellentesque posuere elementum. Sed a varius odio. Morbi rhoncus ligula libero, vel eleifend nunc tristique vitae. Fusce et sem dui. Aenean nec scelerisque tortor. Fusce malesuada accumsan magna vel tempus. Quisque mollis felis eu dolor tristique, sit amet auctor felis gravida. Sed libero lorem, molestie sed nisl in, accumsan tempor nisi. Fusce sollicitudin massa ut lacinia mattis. Sed vel eleifend lorem. Pellentesque vitae felis pretium, pulvinar elit eu, euismod sapien.
-      operationId: findPets
-      parameters:
-        - name: tags
-          in: query
-          description: tags to filter by
-          required: false
-          style: form
-          schema:
-            type: array
-            items:
-              type: string
-        - name: limit
-          in: query
-          description: maximum number of results to return
-          required: false
-          schema:
-            type: integer
-            format: int32
-      responses:
-        '200':
-          description: pet response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Pet'
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    post:
-      description: Creates a new pet in the store. Duplicates are allowed
-      operationId: addPet
-      requestBody:
-        description: Pet to add to the store
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewPet'
-      responses:
-        '200':
-          description: pet response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pet'
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /pets/{id}:
-    get:
-      description: Returns a user based on a single ID, if the user does not have access to the pet
-      operationId: find pet by id
-      parameters:
-        - name: id
-          in: path
-          description: ID of pet to fetch
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: pet response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pet'
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    delete:
-      description: deletes a single pet based on the ID supplied
-      operationId: deletePet
-      parameters:
-        - name: id
-          in: path
-          description: ID of pet to delete
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '204':
-          description: pet deleted
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-components:
-  schemas:
-    Pet:
-      allOf:
-        - $ref: '#/components/schemas/NewPet'
-        - $ref: '#/components/schemas/PetId'
+<body>
+	<h3><a href="/">One Time Link</a></h3>
+	<div id="encrypt">
+		<form id="formEncrypt" onsubmit="return processForm(this)" method="post"
+			action="../store">
+			<textarea style="width: 90%; height:75%; max-height:5em" id="value"></textarea>
+			<input type="hidden" id="encryptedValue" name="value"></input><br />
+			<input type="hidden" id="id" name="key"></input><br /> 
+			<label label-for="expiryDuration">Expiry:</label>
+			<input type="textbox" id="expiryDuration" name="expiryDuration" value="30"
+			style="width:5em"></input>
+			<select id="expiryDurationUnit">
+				<option value="1000">seconds</option>
+				<option value="60000">minutes</option>
+				<option value="360000">hours</option>
+				<option value="86400000" selected>days</option>
+			</select> <br/>
+			<input type="hidden" id="expiryDurationMs" name="expiryDurationMs" value="86400000"></input>
+			<input
+				type="submit" value="Encrypt" style="margin-top:10px"></input>
+		</form>
+		<div id="resultDiv" style="display:none">
+            <img src="copy.png" onclick="copy()" width="24" height="24" style="float:left; margin-right:10px"><p id="result"></p>
+        </div>
         
-    PetId:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-      required:
-        - id        
-
-    NewPet:
-      type: object
-      required:
-        - name  
-      properties:
-        name:
-          type: string
-        tag:
-          type: string    
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
-</textarea>
-<button style="margin:10px;box-sizing: border-box;font-size:125%" onclick="convert()">Convert</button>
-<div id="error" style="color:red"></div>
-<div id="response">
-<a id="png" href="">PNG</a>&nbsp;<a id="svg" href="">SVG</a><br/>
-<img id="svgimg" src="" alt="image"/><br/>
-<p><b>PlantUML text:</b></p>
-<textarea id="puml" readonly style="width:100%;height:40%">
-</textarea>
-</div>
+	</div>
+	
+	<div id="decrypt">
+	    <div id="viewButtonDiv"><button onclick="view(this)">View</button><br/></div>
+	    <textarea id="decrypted" style="margin-top: 10px;width:90%; height:60%; max-height:5em; display:none"></textarea><br/>
+	</div>
 </body>
 </html>
