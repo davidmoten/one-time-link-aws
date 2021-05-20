@@ -94,7 +94,7 @@
 	
 	function initialize() {
 		var id = getUrlParam('id', '');
-		if (id.length > 0) {
+		if (id != null && id.length > 0) {
 			document.getElementById('encrypt').style.display='none';
 			document.getElementById('decrypt').style.display='block';
 		} else {

@@ -124,7 +124,7 @@
                                 <siteBucketName>${siteBucketName}</siteBucketName>
                                 <stage>prod</stage>
                                 <application>${application}</application>
-                                <handler>com.github.davidmoten.oas3.puml.api.Handler::handleRequest</handler>
+                                <handler>com.github.davidmoten.onetimelink.lambda.Handler::handleRequest</handler>
                                 <siteBucketName>${siteBucketName}</siteBucketName>
                             </parameters>
                             <template>src/main/aws/cloudformation.yaml</template>

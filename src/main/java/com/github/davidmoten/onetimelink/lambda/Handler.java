@@ -1,4 +1,4 @@
-package com.github.davidmoten.oas3.puml.api;
+package com.github.davidmoten.onetimelink.lambda;
 
 import java.util.Map;
 
