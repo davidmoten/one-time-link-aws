@@ -27,16 +27,6 @@
             <artifactId>aws-lambda-java-core</artifactId>
             <version>1.2.1</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.davidmoten</groupId>
-            <artifactId>openapi-to-plantuml</artifactId>
-            <version>0.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>net.sourceforge.plantuml</groupId>
-            <artifactId>plantuml</artifactId>
-            <version>1.2021.6</version>
-        </dependency>
 
         <dependency>
             <groupId>junit</groupId>
