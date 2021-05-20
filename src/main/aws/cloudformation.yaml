@@ -161,6 +161,15 @@ Resources:
                 type: "http_proxy"
           /store:
             post:
+              requestBody:
+                required: true
+                content:
+                  application/x-www-form-urlencoded:
+                    schema:
+                      $ref: '#/components/schemas/keyValue'
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/keyValue'
               responses:
                 '200':
                   description: "200 response"
@@ -169,6 +178,80 @@ Resources:
                       schema:
                         # a limitation of Api Gateway is that a $ref must be used here
                         $ref: "#/components/schemas/Empty"
+                '400':
+                  description: "400 response - Bad Request"
+                  content:
+                    application/json:
+                      schema:
+                        # a limitation of Api Gateway is that a $ref must be used here
+                        $ref: "#/components/schemas/Error"
+                '500':
+                  description: "500 response - Server Exception"
+                  content:
+                    application/json:
+                      schema:
+                        $ref: "#/components/schemas/Error"
+              security: []   # No security
+              x-amazon-apigateway-integration:
+                responses:
+                  BadRequest.*:
+                    statusCode: "400"
+                  ServerException.*:
+                    statusCode: "500"
+                  default:
+                    statusCode: "200"
+                    responseTemplates:
+                      ## this bit of weirdness is so quoted text doesn't get returned (json)
+                      application/json: "#set($inputRoot = $input.path('$')) \n$inputRoot"
+                requestTemplates:
+                  application/yaml: "##  See http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html\n\
+                    ##  This template will pass through all parameters including path, querystring,\
+                    \ header, stage variables, and context through to the integration endpoint\
+                    \ via the body/payload\n#set($allParams = $input.params())\n{\n\"body-json\"\
+                    \ : $input.json('$'),\n\"params\" : {\n#foreach($type in $allParams.keySet())\n\
+                    \    #set($params = $allParams.get($type))\n\"$type\" : {\n    #foreach($paramName\
+                    \ in $params.keySet())\n    \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\"\
+                    \n        #if($foreach.hasNext),#end\n    #end\n}\n    #if($foreach.hasNext),#end\n\
+                    #end\n},\n\"stage-variables\" : {\n#foreach($key in $stageVariables.keySet())\n\
+                    \"$key\" : \"$util.escapeJavaScript($stageVariables.get($key))\"\n   \
+                    \ #if($foreach.hasNext),#end\n#end\n},\n\"context\" : {\n    \"account-id\"\
+                    \ : \"$context.identity.accountId\",\n    \"api-id\" : \"$context.apiId\"\
+                    ,\n    \"api-key\" : \"$context.identity.apiKey\",\n    \"authorizer-principal-id\"\
+                    \ : \"$context.authorizer.principalId\",\n    \"caller\" : \"$context.identity.caller\"\
+                    ,\n    \"cognito-authentication-provider\" : \"$context.identity.cognitoAuthenticationProvider\"\
+                    ,\n    \"cognito-authentication-type\" : \"$context.identity.cognitoAuthenticationType\"\
+                    ,\n    \"cognito-identity-id\" : \"$context.identity.cognitoIdentityId\"\
+                    ,\n    \"cognito-identity-pool-id\" : \"$context.identity.cognitoIdentityPoolId\"\
+                    ,\n    \"http-method\" : \"$context.httpMethod\",\n    \"stage\" : \"\
+                    $context.stage\",\n    \"source-ip\" : \"$context.identity.sourceIp\"\
+                    ,\n    \"user\" : \"$context.identity.user\",\n    \"user-agent\" : \"\
+                    $context.identity.userAgent\",\n    \"user-arn\" : \"$context.identity.userArn\"\
+                    ,\n    \"request-id\" : \"$context.requestId\",\n    \"resource-id\" :\
+                    \ \"$context.resourceId\",\n    \"resource-path\" : \"$context.resourcePath\"\
+                    \n    }\n}\n"
+                # escape the substitution using ! before stageVariables.function
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${application}/invocations"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                contentHandling: "CONVERT_TO_TEXT"
+                type: "aws"
+          /get:
+            get:
+              parameters:
+                - in: query
+                  name: key
+                  schema:
+                    type: string
+                  required: true
+                  description: key of value to be retrieved (once only)
+              responses:
+                '200':
+                  description: "200 response"
+                  content:
+                    application/json:
+                      schema:
+                        # a limitation of Api Gateway is that a $ref must be used here
+                        $ref: "#/components/schemas/StringValue"
                 '400':
                   description: "400 response - Bad Request"
                   content:
@@ -246,6 +329,16 @@ Resources:
               type: string
             Empty:
               type: object
+            KeyValue:
+              type: object
+              properties:
+                name: 
+                  type: string
+                value:
+                  type: string
+                required:
+                  - name
+                  - value
 
   myDomainName:
     Type: 'AWS::ApiGatewayV2::DomainName'
