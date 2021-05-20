@@ -166,10 +166,10 @@ Resources:
                 content:
                   application/x-www-form-urlencoded:
                     schema:
-                      $ref: '#/components/schemas/keyValue'
+                      $ref: '#/components/schemas/KeyValue'
                   application/json:
                     schema:
-                      $ref: '#/components/schemas/keyValue'
+                      $ref: '#/components/schemas/KeyValue'
               responses:
                 '200':
                   description: "200 response"
@@ -336,9 +336,9 @@ Resources:
                   type: string
                 value:
                   type: string
-                required:
-                  - name
-                  - value
+              required:
+                - name
+                - value
 
   myDomainName:
     Type: 'AWS::ApiGatewayV2::DomainName'
