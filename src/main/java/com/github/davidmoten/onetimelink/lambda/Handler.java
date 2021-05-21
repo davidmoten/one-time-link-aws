@@ -15,6 +15,7 @@ import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.github.davidmoten.aws.helper.BadRequestException;
 import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
@@ -48,13 +49,21 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 attributes.put("FifoQueue", "true");
                 attributes.put("MessageRetentionPeriod",
                         String.valueOf(TimeUnit.DAYS.toSeconds(14))); // max is 14 days
-                attributes.put("VisibilityTimeout", "30"); // can be low because only one user gets
-                // the message
+                // visibility timeout can be low because only one user gets
+                // the message but a higher value protects against race conditions (like
+                // slowdowns on the AWS backend)
+                attributes.put("VisibilityTimeout", "30");
                 CreateQueueResult q = sqs.createQueue( //
                         new CreateQueueRequest() //
                                 .withQueueName(queueName(applicationName, key)) //
                                 .withAttributes(attributes));
-                sqs.sendMessage(q.getQueueUrl(), String.valueOf(expiryTime));
+                sqs.sendMessage( //
+                        new SendMessageRequest() //
+                                .withQueueUrl(q.getQueueUrl()) //
+                                // needs a messageGroupId if FIFO but is irrelevant to us
+                                // as only one item gets put on the queue
+                                .withMessageGroupId("1") //
+                                .withMessageBody(String.valueOf(expiryTime)));
                 return "stored";
             } else if ("/get".equals(resourcePath)) {
                 Optional<String> k = r.queryStringParameter("key");
@@ -63,7 +72,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 } else {
                     String key = k.get();
                     String queueName = queueName(applicationName, key);
-                    // TODO catch queue does not exist and throw 
+                    // TODO catch queue does not exist and throw
                     String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
                     List<Message> list = sqs.receiveMessage(qurl).getMessages();
                     if (list.isEmpty()) {
