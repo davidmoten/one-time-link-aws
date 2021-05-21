@@ -20,6 +20,7 @@
         <timestamp>${maven.build.timestamp}</timestamp>
         <timestampSuffix>-${timestamp}</timestampSuffix>
         <siteBucketName>${application}-site-${aws.account.id.lowercase}</siteBucketName>
+        <aws.sdk.version>1.11.1022</aws.sdk.version>
     </properties>
     <dependencies>
         <dependency>
@@ -27,7 +28,7 @@
             <artifactId>aws-lambda-java-core</artifactId>
             <version>1.2.1</version>
         </dependency>
-        
+
         <dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>aws-helper</artifactId>
@@ -40,7 +41,7 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
-        
+
     </dependencies>
     <build>
         <finalName>${project.artifactId}</finalName>
