@@ -58,8 +58,8 @@
 		result.innerHTML = "Sending...";
 		var resultDiv = document.getElementById('resultDiv');
 		
-		fetch(frm.action, {
-		  method: frm.method,
+		fetch("../store", {
+		  method: "POST",
 		  headers: {
 		      'Content-Type': 'application/json'
 		  },
@@ -148,8 +148,7 @@
 <body>
 	<h3><a href="../site/index.html">One Time Link</a></h3>
 	<div id="encrypt">
-		<form id="formEncrypt" onsubmit="return processForm(this)" method="post"
-			action="../store">
+		<form id="formEncrypt">
 			<textarea style="width: 90%; height:75%; max-height:5em" id="value"></textarea>
 			<input type="hidden" id="encryptedValue" name="value"></input><br />
 			<input type="hidden" id="id" name="key"></input><br /> 
