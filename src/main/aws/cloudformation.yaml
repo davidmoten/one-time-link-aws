@@ -30,6 +30,10 @@ Parameters:
   dataBucketName:
     Type: String
     
+  dataBucketExpirationDays:
+    Default: "30"
+    Type: String
+    
   domainName:
     Default: onetimelink.davidmoten.org
     Type: String
@@ -54,6 +58,12 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       BucketName: !Sub "${dataBucketName}"
+      LifecycleConfiguration: 
+        Rules: 
+          - Id: !Sub "${dataBucketName}-expiration-rule"
+            Prefix: ""
+            Status: Enabled
+            ExpirationInDays: !Ref dataBucketExpirationDays       
       
   LambdaFunctionRole:
     Type: 'AWS::IAM::Role'
