@@ -16,8 +16,9 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             Map<String, Object> c = (Map<String, Object>) input.get("context");
             String resourcePath = (String) c.get("resource-path");
             if ("/store".equals(resourcePath)) {
-                String bodyJson = (String) input.get("body-json");
-                return bodyJson;
+                @SuppressWarnings("unchecked")
+                Map<String, String> body = (Map<String, String>) input.get("body-json");
+                return body.toString();
             } else if ("/get".equals(resourcePath)) {
                 return "ENCRYPTED_SECRET";
             } else {
