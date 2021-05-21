@@ -307,6 +307,13 @@ Resources:
                       schema:
                         # a limitation of Api Gateway is that a $ref must be used here
                         $ref: "#/components/schemas/Error"
+                '410':
+                  description: "410 response - Gone"
+                  content:
+                    application/json:
+                      schema:
+                        # a limitation of Api Gateway is that a $ref must be used here
+                        $ref: "#/components/schemas/Error"
                 '500':
                   description: "500 response - Server Exception"
                   content:

@@ -13,6 +13,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -48,7 +49,8 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 String value = body.get("value");
                 long expiryDurationMs = Long.parseLong(body.get("expiryDurationMs"));
                 long expiryTime = System.currentTimeMillis() + expiryDurationMs;
-                s3.putObject(dataBucketName, key, value);
+                ExecutorService executor = Executors.newSingleThreadExecutor();
+                Future<?> a = executor.submit(() -> s3.putObject(dataBucketName, key, value));
                 Map<String, String> attributes = new HashMap<String, String>();
                 attributes.put("FifoQueue", "true");
                 attributes.put("ContentBasedDeduplication", "true");
@@ -69,6 +71,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                                 // as only one item gets put on the queue
                                 .withMessageGroupId("1") //
                                 .withMessageBody(String.valueOf(expiryTime)));
+                a.get(1, TimeUnit.MINUTES);
                 return "stored";
             } else if ("/get".equals(resourcePath)) {
                 Optional<String> k = r.queryStringParameter("key");
