@@ -12,15 +12,11 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
     @Override
     public String handleRequest(Map<String, Object> input, Context context) {
         try {
-            if (true) {
-                return input.toString();
-            }
             @SuppressWarnings("unchecked")
             Map<String, Object> c = (Map<String, Object>) input.get("context");
-            
             String resourcePath = (String) c.get("resource-path");
             if ("store".equals(resourcePath)) {
-                return "\"\"";
+                return "\"stored\"";
             } else if ("get".equals(resourcePath)) {
                 return "\"something\"";
             } else {
