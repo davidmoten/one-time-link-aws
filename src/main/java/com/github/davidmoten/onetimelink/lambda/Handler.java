@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import com.amazonaws.services.lambda.runtime.Context;
@@ -15,6 +18,7 @@ import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.github.davidmoten.aws.helper.BadRequestException;
 import com.github.davidmoten.aws.helper.ServerException;
@@ -73,26 +77,36 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 } else {
                     String key = k.get();
                     String queueName = queueName(applicationName, key);
-                    // TODO catch queue does not exist and throw
-                    String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
-                    List<Message> list = sqs.receiveMessage(qurl).getMessages();
-                    if (list.isEmpty()) {
-                        sqs.deleteQueue(qurl);
-                        throw new RuntimeException("Gone: message has been read already " + key);
-                    } else {
-                        Message message = list.get(0);
-                        long expiryTime = Long.parseLong(message.getBody());
-                        // remove from queue
-                        sqs.deleteMessage(queueName, message.getReceiptHandle());
-                        if (expiryTime < System.currentTimeMillis()) {
-                            throw new RuntimeException("Gone: message has expired " + key);
-                        } else {
-                            // TODO perform actions in parallel
+                    try {
+                        String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
+
+                        List<Message> list = sqs.receiveMessage(qurl).getMessages();
+                        if (list.isEmpty()) {
                             sqs.deleteQueue(qurl);
-                            String result = s3.getObjectAsString(dataBucketName, key);
-                            s3.deleteObject(dataBucketName, key);
-                            return result;
+                            throw new GoneException("message has been read already " + key);
+                        } else {
+                            Message message = list.get(0);
+                            long expiryTime = Long.parseLong(message.getBody());
+                            // remove from queue
+                            sqs.deleteMessage(queueName, message.getReceiptHandle());
+                            if (expiryTime < System.currentTimeMillis()) {
+                                throw new GoneException("message has expired " + key);
+                            } else {
+                                // perform actions in parallel
+                                ExecutorService executor = Executors.newSingleThreadExecutor();
+                                Future<String> result = executor.submit(() -> {
+                                    String answer = s3.getObjectAsString(dataBucketName, key);
+                                    s3.deleteObject(dataBucketName, key);
+                                    return answer;
+                                });
+                                sqs.deleteQueue(qurl);
+                                result.get(1, TimeUnit.MINUTES);
+                                return result.get(1, TimeUnit.MINUTES);
+                            }
                         }
+                    } catch (QueueDoesNotExistException e) {
+                        throw new GoneException(
+                                "message has been read already (queue does not exist)");
                     }
                 }
             } else {
@@ -100,7 +114,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             }
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e);
-        } catch (BadRequestException | ServerException e) {
+        } catch (BadRequestException | ServerException | GoneException e) {
             throw e;
         } catch (Throwable e) {
             throw new ServerException(e);
