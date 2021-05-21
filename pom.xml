@@ -136,7 +136,7 @@
                                 <artifactBucket>${artifact.bucket}-${aws.account.id.lowercase}</artifactBucket>
                                 <artifactObjectName>${project.artifactId}-${project.version}${timestampSuffix}.jar</artifactObjectName>
                                 <siteBucketName>${siteBucketName}</siteBucketName>
-                                <stage></stage>
+                                <stage>prod</stage>
                                 <application>${application}</application>
                                 <handler>com.github.davidmoten.onetimelink.lambda.Handler::handleRequest</handler>
                                 <siteBucketName>${siteBucketName}</siteBucketName>
