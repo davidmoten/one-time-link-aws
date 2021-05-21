@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
@@ -36,7 +35,6 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 throw new ServerException("environment variable WHO not set");
             }
             AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
-            AmazonSQSClient c;
             AmazonSQS sqs = AmazonSQSClientBuilder.defaultClient();
             if ("/store".equals(resourcePath)) {
                 @SuppressWarnings("unchecked")
