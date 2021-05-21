@@ -136,7 +136,7 @@
 					d.value = "An error occurred: status code="+ res.status + ", reason: " + "?";
 					enableViewButton();
 				} else {
-					viewButton.innerHTML = "Loading...";
+					viewButton.innerHTML = "Decrypting...";
 					res.text().then(function (x) {
 						d.value = decrypt(password, x);	
 						document.getElementById("viewButtonDiv").style.display='none';
