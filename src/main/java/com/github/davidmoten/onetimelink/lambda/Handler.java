@@ -99,7 +99,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
     }
 
     private static String queueName(String applicationName, String key) {
-        return applicationName + "-" + key;
+        return applicationName + "-" + key + ".fifo";
     }
 
 }
