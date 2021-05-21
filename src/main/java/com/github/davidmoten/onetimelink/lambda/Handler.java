@@ -9,6 +9,8 @@ import com.github.davidmoten.aws.helper.ServerException;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
 
+    private static String val = "not set";
+    
     @Override
     public String handleRequest(Map<String, Object> input, Context context) {
         try {
@@ -18,9 +20,12 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             if ("/store".equals(resourcePath)) {
                 @SuppressWarnings("unchecked")
                 Map<String, String> body = (Map<String, String>) input.get("body-json");
-                return body.toString();
+                String key = body.get("key");
+                String value = body.get("value");
+                val = value;
+                return "stored";
             } else if ("/get".equals(resourcePath)) {
-                return "ENCRYPTED_SECRET";
+                return val;
             } else {
                 throw new BadRequestException("unknown resource path: " + resourcePath);
             }
