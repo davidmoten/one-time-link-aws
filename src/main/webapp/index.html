@@ -112,6 +112,12 @@
 	    console.log("init run");
 	}
 	
+	function enableViewButton() {
+		var viewButton = document.getElementById('decrypted');
+		viewButton.innerHTML = "View";
+		viewButton.disabled = false;
+	}
+	
 	function view(viewButton) {
 		var d = document.getElementById('decrypted');
 		var p = getUrlParam('id', '');
@@ -123,12 +129,12 @@
 			  method: 'GET'
 			})
 			.then(function (res) {
-			    viewButton.innerHTML = "View";
-			    viewButton.disabled = false;
 				if (res.status == 410) {
 					d.value = "Value not found, it has already been read or has expired."
+					enableViewButton();
 				} else if (res.status != 200) {
 					d.value = "An error occurred: status code="+ res.status + ", reason: " + "?";
+					enableViewButton();
 				} else {
 					viewButton.value = "Loading...";
 					res.text().then(function (x) {
@@ -136,7 +142,7 @@
 						document.getElementById("viewButtonDiv").style.display='none';
 					}).catch(function (error) {
 						d.value = error;
-						viewButton.value = "View";
+						enableViewButton();
 					});
 				}
 			})
