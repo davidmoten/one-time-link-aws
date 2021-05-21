@@ -92,6 +92,21 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${dataBucketName}/*'
                   - !Sub 'arn:aws:s3:::${dataBucketName}'
+        - PolicyName: data-queue-sqs-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueUrl
+              - sqs:CreateQueue
+              - sqs:DeleteQueue
+              - sqs:SendMessage 
+              Effect: Allow
+              Resource:
+              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:$[application}*"
+              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:$[application}*"               
 
   LambdaFunction:
     Type: AWS::Lambda::Function
@@ -305,6 +320,8 @@ Resources:
                     statusCode: "400"
                   NotFound.*:
                     statusCode: "404"
+                  Gone.*:
+                    statusCode: "410"
                   ServerException.*:
                     statusCode: "500"
                   default:

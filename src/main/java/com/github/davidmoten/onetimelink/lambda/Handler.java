@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -45,6 +46,10 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 s3.putObject(dataBucketName, key, value);
                 Map<String, String> attributes = new HashMap<String, String>();
                 attributes.put("FifoQueue", "true");
+                attributes.put("MessageRetentionPeriod",
+                        String.valueOf(TimeUnit.DAYS.toSeconds(14))); // max is 14 days
+                attributes.put("VisibilityTimeout", "30"); // can be low because only one user gets
+                                                          // the message
                 CreateQueueResult q = sqs.createQueue( //
                         new CreateQueueRequest() //
                                 .withQueueName(queueName(applicationName, key)) //
@@ -58,15 +63,27 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 } else {
                     String key = k.get();
                     String queueName = queueName(applicationName, key);
+                    // TODO catch queue does not exist and throw 
                     String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
                     List<Message> list = sqs.receiveMessage(qurl).getMessages();
                     if (list.isEmpty()) {
                         sqs.deleteQueue(qurl);
-                        throw new RuntimeException("NotFound: no message found for " + key);
+                        throw new RuntimeException("Gone: message has been read already " + key);
+                    } else {
+                        Message message = list.get(0);
+                        long expiryTime = Long.parseLong(message.getBody());
+                        // remove from queue
+                        sqs.deleteMessage(queueName, message.getReceiptHandle());
+                        if (expiryTime < System.currentTimeMillis()) {
+                            throw new RuntimeException("Gone: message has expired " + key);
+                        } else {
+                            // TODO perform actions in parallel
+                            sqs.deleteQueue(qurl);
+                            String result = s3.getObjectAsString(dataBucketName, key);
+                            s3.deleteObject(dataBucketName, key);
+                            return result;
+                        }
                     }
-                    String result = s3.getObjectAsString(dataBucketName, key);
-                    s3.deleteObject(dataBucketName, key);
-                    return result;
                 }
             } else {
                 throw new BadRequestException("unknown resource path: " + resourcePath);
