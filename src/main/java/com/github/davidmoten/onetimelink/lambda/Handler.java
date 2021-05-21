@@ -18,7 +18,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             if ("/store".equals(resourcePath)) {
                 return "\"stored\"";
             } else if ("/get".equals(resourcePath)) {
-                return "\"something\"";
+                return "ENCRYPTED_SECRET";
             } else {
                 throw new BadRequestException("unknown resource path: " + resourcePath);
             }

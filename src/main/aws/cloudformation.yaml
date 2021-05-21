@@ -245,7 +245,7 @@ Resources:
                 '200':
                   description: "200 response"
                   content:
-                    application/json:
+                    text/plain:
                       schema:
                         # a limitation of Api Gateway is that a $ref must be used here
                         $ref: "#/components/schemas/StringValue"

@@ -67,7 +67,7 @@
 		}).then(function(res) {
 		  if (res.ok) {
 		    console.log(JSON.stringify(res));
-            var u = document.baseURI + "?key=" + password + id.value;
+            var u = document.baseURI + "?id=" + password + id.value;
 		    result.innerHTML = '<a href="' + u + '" id="url">' + u + '</a>';
 		    unencrypted.value = '';
 		  } else {
