@@ -105,8 +105,8 @@ Resources:
               - sqs:SendMessage 
               Effect: Allow
               Resource:
-              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:$[application}*"
-              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:$[application}*"               
+              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${application}*"
+              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${application}*"               
 
   LambdaFunction:
     Type: AWS::Lambda::Function
