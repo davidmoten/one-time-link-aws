@@ -78,6 +78,20 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+      Policies:
+        # don't bother with modal name because is embedded policy
+        - PolicyName: data-bucket-s3-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                  - 's3:DeleteObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${dataBucketName}/*'
+                  - !Sub 'arn:aws:s3:::${dataBucketName}'
 
   LambdaFunction:
     Type: AWS::Lambda::Function
