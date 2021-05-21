@@ -15,9 +15,9 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             @SuppressWarnings("unchecked")
             Map<String, Object> c = (Map<String, Object>) input.get("context");
             String resourcePath = (String) c.get("resource-path");
-            if ("store".equals(resourcePath)) {
+            if ("/store".equals(resourcePath)) {
                 return "\"stored\"";
-            } else if ("get".equals(resourcePath)) {
+            } else if ("/get".equals(resourcePath)) {
                 return "\"something\"";
             } else {
                 throw new BadRequestException("unknown resource path: " + resourcePath);
