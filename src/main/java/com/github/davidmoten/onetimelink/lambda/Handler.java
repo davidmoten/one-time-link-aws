@@ -46,7 +46,6 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 s3.putObject(dataBucketName, key, value);
                 Map<String, String> attributes = new HashMap<String, String>();
                 attributes.put("FifoQueue", "true");
-                attributes.put("ContentBasedDeduplication", "true");
                 attributes.put("MessageRetentionPeriod",
                         String.valueOf(TimeUnit.DAYS.toSeconds(14))); // max is 14 days
                 attributes.put("VisibilityTimeout", "30"); // can be low because only one user gets
