@@ -20,6 +20,7 @@
         <timestamp>${maven.build.timestamp}</timestamp>
         <timestampSuffix>-${timestamp}</timestampSuffix>
         <siteBucketName>${application}-site-${aws.account.id.lowercase}</siteBucketName>
+        <dataBucketName>${application}-data-${aws.account.id.lowercase}</dataBucketName>
         <aws.sdk.version>1.11.1022</aws.sdk.version>
     </properties>
     <dependencies>
@@ -33,6 +34,12 @@
             <groupId>com.github.davidmoten</groupId>
             <artifactId>aws-helper</artifactId>
             <version>0.2.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>${aws.sdk.version}</version>
         </dependency>
 
         <dependency>
@@ -127,6 +134,7 @@
                                 <application>${application}</application>
                                 <handler>com.github.davidmoten.onetimelink.lambda.Handler::handleRequest</handler>
                                 <siteBucketName>${siteBucketName}</siteBucketName>
+                                <dataBucketName>${dataBucketName}</dataBucketName>
                             </parameters>
                             <template>src/main/aws/cloudformation.yaml</template>
                             <intervalSeconds>2</intervalSeconds>
