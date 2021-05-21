@@ -41,7 +41,7 @@
             <artifactId>aws-java-sdk-s3</artifactId>
             <version>${aws.sdk.version}</version>
         </dependency>
-        
+
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-sqs</artifactId>
@@ -222,6 +222,12 @@
                                     <artifact>commons-logging:commons-logging:*</artifact>
                                     <includes>
                                         <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>com.amazonaws:aws-java-sdk-sqs:*</artifact>
+                                    <includes>
+                                        <include>com/amazonaws/services/sqs/**</include>
                                     </includes>
                                 </filter>
                             </filters>
