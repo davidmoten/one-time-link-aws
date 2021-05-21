@@ -37,7 +37,9 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 if (!key.isPresent()) {
                     throw new BadRequestException("key parameter not present");
                 } else {
-                    return s3.getObjectAsString(dataBucketName, key.get());
+                    String result =  s3.getObjectAsString(dataBucketName, key.get());
+                    s3.deleteObject(dataBucketName, key.get());
+                    return result;
                 }
             } else {
                 throw new BadRequestException("unknown resource path: " + resourcePath);
