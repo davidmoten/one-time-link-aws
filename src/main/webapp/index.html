@@ -33,6 +33,9 @@
 		// but the server doesn't have the password to decrypt
 		// The password is in the url given to someone and the decryption
 		// happens in javascript so server never sees unencrypted values
+		var button = document.getElementById('button');
+		button.disabled = true;
+		button.innerHTML = "Encrypting...";
 		var id = document.getElementById('id');
 		var expiryDuration = document.getElementById('expiryDuration');
 		var expiryDurationUnit = document.getElementById('expiryDurationUnit');
@@ -58,8 +61,6 @@
 		var result = document.getElementById('result');
 		result.innerHTML = "Sending...";
 		var resultDiv = document.getElementById('resultDiv');
-		var button = document.getElementById('button');
-		button.disabled = true;
 		button.innerHTML = "Creating link...";
 		fetch("../store", {
 		  method: "POST",
