@@ -4,16 +4,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -43,75 +44,9 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
             AmazonSQS sqs = AmazonSQSClientBuilder.defaultClient();
             if ("/store".equals(resourcePath)) {
-                @SuppressWarnings("unchecked")
-                Map<String, String> body = (Map<String, String>) input.get("body-json");
-                String key = body.get("key");
-                String value = body.get("value");
-                long expiryDurationMs = Long.parseLong(body.get("expiryDurationMs"));
-                long expiryTime = System.currentTimeMillis() + expiryDurationMs;
-                ExecutorService executor = Executors.newSingleThreadExecutor();
-                Future<?> a = executor.submit(() -> s3.putObject(dataBucketName, key, value));
-                Map<String, String> attributes = new HashMap<String, String>();
-                attributes.put("FifoQueue", "true");
-                attributes.put("ContentBasedDeduplication", "true");
-                attributes.put("MessageRetentionPeriod",
-                        String.valueOf(TimeUnit.DAYS.toSeconds(14))); // max is 14 days
-                // visibility timeout can be low because only one user gets
-                // the message but a higher value protects against race conditions (like
-                // slowdowns on the AWS backend)
-                attributes.put("VisibilityTimeout", "30");
-                CreateQueueResult q = sqs.createQueue( //
-                        new CreateQueueRequest() //
-                                .withQueueName(queueName(applicationName, key)) //
-                                .withAttributes(attributes));
-                sqs.sendMessage( //
-                        new SendMessageRequest() //
-                                .withQueueUrl(q.getQueueUrl()) //
-                                // needs a messageGroupId if FIFO but is irrelevant to us
-                                // as only one item gets put on the queue
-                                .withMessageGroupId("1") //
-                                .withMessageBody(String.valueOf(expiryTime)));
-                a.get(1, TimeUnit.MINUTES);
-                return "stored";
+                return handleStoreRequest(input, dataBucketName, applicationName, s3, sqs);
             } else if ("/get".equals(resourcePath)) {
-                Optional<String> k = r.queryStringParameter("key");
-                if (!k.isPresent()) {
-                    throw new BadRequestException("key parameter not present");
-                } else {
-                    String key = k.get();
-                    String queueName = queueName(applicationName, key);
-                    try {
-                        String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
-
-                        List<Message> list = sqs.receiveMessage(qurl).getMessages();
-                        if (list.isEmpty()) {
-                            sqs.deleteQueue(qurl);
-                            throw new GoneException("message has been read already " + key);
-                        } else {
-                            Message message = list.get(0);
-                            long expiryTime = Long.parseLong(message.getBody());
-                            // remove from queue
-                            sqs.deleteMessage(queueName, message.getReceiptHandle());
-                            if (expiryTime < System.currentTimeMillis()) {
-                                throw new GoneException("message has expired " + key);
-                            } else {
-                                // perform actions in parallel
-                                ExecutorService executor = Executors.newSingleThreadExecutor();
-                                Future<String> result = executor.submit(() -> {
-                                    String answer = s3.getObjectAsString(dataBucketName, key);
-                                    s3.deleteObject(dataBucketName, key);
-                                    return answer;
-                                });
-                                sqs.deleteQueue(qurl);
-                                result.get(1, TimeUnit.MINUTES);
-                                return result.get(1, TimeUnit.MINUTES);
-                            }
-                        }
-                    } catch (QueueDoesNotExistException e) {
-                        throw new GoneException(
-                                "message has been read already (queue does not exist)");
-                    }
-                }
+                return handleGetRequest(r, dataBucketName, applicationName, s3, sqs);
             } else {
                 throw new BadRequestException("unknown resource path: " + resourcePath);
             }
@@ -122,6 +57,84 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         } catch (Throwable e) {
             throw new ServerException(e);
         }
+    }
+
+    private static String handleGetRequest(StandardRequestBodyPassThrough r, String dataBucketName,
+            String applicationName, AmazonS3 s3, AmazonSQS sqs)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        Optional<String> k = r.queryStringParameter("key");
+        if (!k.isPresent()) {
+            throw new BadRequestException("key parameter not present");
+        } else {
+            String key = k.get();
+            String queueName = queueName(applicationName, key);
+            try {
+                String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
+
+                List<Message> list = sqs.receiveMessage(qurl).getMessages();
+                if (list.isEmpty()) {
+                    sqs.deleteQueue(qurl);
+                    throw new GoneException("message has been read already " + key);
+                } else {
+                    Message message = list.get(0);
+                    long expiryTime = Long.parseLong(message.getBody());
+                    // remove from queue
+                    sqs.deleteMessage(queueName, message.getReceiptHandle());
+                    if (expiryTime < System.currentTimeMillis()) {
+                        throw new GoneException("message has expired " + key);
+                    } else {
+                        // perform actions in parallel
+                        ExecutorService executor = Executors.newSingleThreadExecutor();
+                        Future<String> result = executor.submit(() -> {
+                            String answer = s3.getObjectAsString(dataBucketName, key);
+                            s3.deleteObject(dataBucketName, key);
+                            return answer;
+                        });
+                        sqs.deleteQueue(qurl);
+                        result.get(1, TimeUnit.MINUTES);
+                        return result.get(1, TimeUnit.MINUTES);
+                    }
+                }
+            } catch (QueueDoesNotExistException e) {
+                throw new GoneException(
+                        "message has been read already (queue does not exist)");
+            }
+        }
+    }
+
+    private static String handleStoreRequest(Map<String, Object> input, String dataBucketName,
+            String applicationName, AmazonS3 s3, AmazonSQS sqs)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        @SuppressWarnings("unchecked")
+        Map<String, String> body = (Map<String, String>) input.get("body-json");
+        String key = body.get("key");
+        String value = body.get("value");
+        long expiryDurationMs = Long.parseLong(body.get("expiryDurationMs"));
+        long expiryTime = System.currentTimeMillis() + expiryDurationMs;
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> a = executor.submit(() -> s3.putObject(dataBucketName, key, value));
+        Map<String, String> attributes = new HashMap<String, String>();
+        attributes.put("FifoQueue", "true");
+        attributes.put("ContentBasedDeduplication", "true");
+        attributes.put("MessageRetentionPeriod",
+                String.valueOf(TimeUnit.DAYS.toSeconds(14))); // max is 14 days
+        // visibility timeout can be low because only one user gets
+        // the message but a higher value protects against race conditions (like
+        // slowdowns on the AWS backend)
+        attributes.put("VisibilityTimeout", "30");
+        CreateQueueResult q = sqs.createQueue( //
+                new CreateQueueRequest() //
+                        .withQueueName(queueName(applicationName, key)) //
+                        .withAttributes(attributes));
+        sqs.sendMessage( //
+                new SendMessageRequest() //
+                        .withQueueUrl(q.getQueueUrl()) //
+                        // needs a messageGroupId if FIFO but is irrelevant to us
+                        // as only one item gets put on the queue
+                        .withMessageGroupId("1") //
+                        .withMessageBody(String.valueOf(expiryTime)));
+        a.get(1, TimeUnit.MINUTES);
+        return "stored";
     }
 
     private static String queueName(String applicationName, String key) {
