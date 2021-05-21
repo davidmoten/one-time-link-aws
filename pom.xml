@@ -212,6 +212,12 @@
                                         <exclude>META-INF/*.MF</exclude>
                                     </excludes>
                                 </filter>
+                                <filter>
+                                    <artifact>commons-logging:commons-logging:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.MF</exclude>
+                                    </excludes>
+                                </filter>
                             </filters>
                         </configuration>
                     </execution>
