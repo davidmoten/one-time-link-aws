@@ -303,6 +303,8 @@ Resources:
                 responses:
                   BadRequest.*:
                     statusCode: "400"
+                  NotFound.*:
+                    statusCode: "404"
                   ServerException.*:
                     statusCode: "500"
                   default:
