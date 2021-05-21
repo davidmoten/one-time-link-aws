@@ -58,7 +58,9 @@
 		var result = document.getElementById('result');
 		result.innerHTML = "Sending...";
 		var resultDiv = document.getElementById('resultDiv');
-		
+		var button = document.getElementById('button');
+		button.disabled = true;
+		button.innerHTML = "Creating link...";
 		fetch("../store", {
 		  method: "POST",
 		  headers: {
@@ -76,6 +78,8 @@
 		    result.innerHTML = "Error, try again";
 		  }
 		  resultDiv.style.display='block';
+		  button.innerHTML = "Encrypt";
+		  button.disabled = false;
 		});
 		return false;
     }
@@ -164,7 +168,7 @@
 			</select> <br/>
 			<input type="hidden" id="expiryDurationMs" name="expiryDurationMs" value="86400000"></input>
 		</form>
-		<button onclick="processForm(document.getElementById('formEncrypt'))">Encrypt</button>
+		<button id="button" onclick="processForm(document.getElementById('formEncrypt'))">Encrypt</button>
 		<div id="resultDiv" style="display:none">
             <img src="copy.png" onclick="copy()" width="24" height="24" style="float:left; margin-right:10px"><p id="result"></p>
         </div>
