@@ -139,6 +139,7 @@
                                 <stage>prod</stage>
                                 <application>${application}</application>
                                 <handler>com.github.davidmoten.onetimelink.lambda.Handler::handleRequest</handler>
+                                <cleanupHandler>com.github.davidmoten.onetimelink.lambda.CleanupHandler::handle</cleanupHandler>
                                 <siteBucketName>${siteBucketName}</siteBucketName>
                                 <dataBucketName>${dataBucketName}</dataBucketName>
                             </parameters>

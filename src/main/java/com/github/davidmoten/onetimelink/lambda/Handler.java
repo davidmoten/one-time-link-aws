@@ -1,5 +1,10 @@
 package com.github.davidmoten.onetimelink.lambda;
 
+import static com.github.davidmoten.onetimelink.lambda.Util.queueName;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +20,8 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -22,6 +29,7 @@ import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.util.StringInputStream;
 import com.github.davidmoten.aws.helper.BadRequestException;
 import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
@@ -96,8 +104,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                     }
                 }
             } catch (QueueDoesNotExistException e) {
-                throw new GoneException(
-                        "message has been read already (queue does not exist)");
+                throw new GoneException("message has been read already (queue does not exist)");
             }
         }
     }
@@ -112,12 +119,24 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         long expiryDurationMs = Long.parseLong(body.get("expiryDurationMs"));
         long expiryTime = System.currentTimeMillis() + expiryDurationMs;
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<?> a = executor.submit(() -> s3.putObject(dataBucketName, key, value));
+
+        Future<?> a = executor.submit(() -> {
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.addUserMetadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime));
+            try (InputStream in = new StringInputStream(value)) {
+                PutObjectRequest request = new PutObjectRequest(dataBucketName, key, in, metadata);
+                s3.putObject(request);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
         Map<String, String> attributes = new HashMap<String, String>();
         attributes.put("FifoQueue", "true");
         attributes.put("ContentBasedDeduplication", "true");
-        attributes.put("MessageRetentionPeriod",
-                String.valueOf(TimeUnit.DAYS.toSeconds(14))); // max is 14 days
+        
+        // max retention for sqs is 14 days
+        attributes.put("MessageRetentionPeriod", String.valueOf(TimeUnit.DAYS.toSeconds(14))); 
+        
         // visibility timeout can be low because only one user gets
         // the message but a higher value protects against race conditions (like
         // slowdowns on the AWS backend)
@@ -135,10 +154,6 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                         .withMessageBody(String.valueOf(expiryTime)));
         a.get(1, TimeUnit.MINUTES);
         return "stored";
-    }
-
-    private static String queueName(String applicationName, String key) {
-        return applicationName + "-" + key + ".fifo";
     }
 
 }
