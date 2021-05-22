@@ -135,7 +135,7 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: !Sub "${application}-cleanup-schedule-rule"
-      ScheduleExpression: "rate(10 minutes)"
+      ScheduleExpression: "rate(12 hours)"
       Targets:
         - Id: !Sub "${application}-cleanup-schedule-rule-target"
           Arn: !GetAtt
