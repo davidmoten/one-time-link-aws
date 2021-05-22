@@ -162,7 +162,7 @@ Resources:
         S3Key: !Sub '${artifactObjectName}'
       FunctionName: !Sub '${application}-cleanup'
       Handler: !Sub '${cleanupHandler}'
-      MemorySize: 512
+      MemorySize: 128
       Timeout: 300 # seconds
       Role: !GetAtt 
         - LambdaFunctionRole
