@@ -44,7 +44,7 @@
 		var expiryDuration = document.getElementById('expiryDuration');
 		var expiryDurationUnit = document.getElementById('expiryDurationUnit');
 		var expiryDurationMs = document.getElementById('expiryDurationMs');
-		var ms = Math.abs(round(parseFloat(expiryDuration.value) * parseInt(expiryDurationUnit.value)));
+		var ms = Math.abs(Math.round(parseFloat(expiryDuration.value) * parseInt(expiryDurationUnit.value)));
 		expiryDurationMs.value = "" + ms;
 		id.value = random_string(ID_LENGTH);
 		// generate password to encrypt with
