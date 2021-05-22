@@ -16,7 +16,7 @@ import com.github.davidmoten.aws.helper.ServerException;
 
 public final class CleanupHandler {
 
-    public void handle(Map<String, Object> input, Context context) {
+    public String handle(Map<String, Object> input, Context context) {
         String dataBucketName = System.getenv("DATA_BUCKET_NAME");
         if (dataBucketName == null) {
             throw new ServerException("environment variable DATA_BUCKET_NAME not set");
@@ -27,12 +27,14 @@ public final class CleanupHandler {
         }
         AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
         AmazonSQS sqs = AmazonSQSClientBuilder.defaultClient();
-        StreamSupport.stream(S3Objects.inBucket(s3, dataBucketName).spliterator(), false) //
-                .filter(x -> Long
-                        .parseLong((String) s3.getObjectMetadata(dataBucketName, x.getKey())
-                                .getRawMetadataValue(Util.EXPIRY_TIME_EPOCH_MS)) < System
-                                        .currentTimeMillis()) //
-                .forEach(x -> {
+        long count = StreamSupport
+                .stream(S3Objects.inBucket(s3, dataBucketName).spliterator(), false) //
+                .filter(x -> {
+                    String s = (String) s3.getObjectMetadata(dataBucketName, x.getKey())
+                            .getUserMetaDataOf(Util.EXPIRY_TIME_EPOCH_MS);
+                    return s != null && Long.parseLong(s) < System.currentTimeMillis();
+                }) //
+                .peek(x -> {
                     String key = x.getKey();
                     String queueName = queueName(applicationName, key);
                     try {
@@ -42,7 +44,9 @@ public final class CleanupHandler {
                         // ignore
                     }
                     s3.deleteObject(dataBucketName, key);
-                });
+                }) //
+                .count();
+        return count + " s3 objects deleted with their associated queues";
     }
 
 }
