@@ -139,7 +139,7 @@ Resources:
       Targets:
         - Id: !Sub "${application}-cleanup-schedule-rule-target"
           Arn: !GetAtt
-            - CleanupLambdaFunction
+            - LambdaCleanupFunction
             - Arn 
 
   InvokeLambdaCleanupPermission: 
