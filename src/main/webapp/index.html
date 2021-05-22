@@ -36,6 +36,10 @@
 		var button = document.getElementById('button');
 		button.disabled = true;
 		button.innerHTML = "Encrypting...";
+		var result = document.getElementById('result');
+		var resultDiv = document.getElementById('resultDiv');
+		resultDiv.style.display='none';
+		
 		var id = document.getElementById('id');
 		var expiryDuration = document.getElementById('expiryDuration');
 		var expiryDurationUnit = document.getElementById('expiryDurationUnit');
@@ -58,9 +62,6 @@
 		  }
 		}
 		
-		var result = document.getElementById('result');
-		result.innerHTML = "";
-		var resultDiv = document.getElementById('resultDiv');
 		button.innerHTML = "Creating link...";
 		fetch("../store", {
 		  method: "POST",
