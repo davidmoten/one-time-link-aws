@@ -160,7 +160,7 @@ Resources:
       Code:
         S3Bucket: !Sub '${artifactBucket}'
         S3Key: !Sub '${artifactObjectName}'
-      FunctionName: !Sub '${application}'
+      FunctionName: !Sub '${application}-cleanup'
       Handler: !Sub '${cleanupHandler}'
       MemorySize: 512
       Timeout: 300 # seconds
