@@ -134,11 +134,9 @@
 				if (res.status == 410) {
 					d.value = "Value not found, it has already been read or has expired."
 					enableViewButton();
-					return false;
-				} else if (res.status != 200) {
+				} else if (!res.ok) {
 					d.value = "An error occurred: \n"+ JSON.stringify(res);
 					enableViewButton();
-					return false;
 				} else {
 					viewButton.innerHTML = "Decrypting...";
 					res.text().then(function (x) {
