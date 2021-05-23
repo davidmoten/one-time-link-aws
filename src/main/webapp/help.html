@@ -32,6 +32,21 @@ part are aware of the leaking of the secret.</p>
 <h3>Implementation</h3>
 <p>When you click on the Encrypt button the following happens:</p>
 
+<pre>
+@startuml
+User-> Browser: Secret
+Browser-> Browser: SecretId
+note right: 16 chars\nrandomly generated
+Browser-> Browser: EncryptedSecret
+note right: Secret is encrypted \nusing AES 256\nwith key SecretId
+Browser-> Browser: SecretIdHash
+note right: Hex SHA-1 hash of SecretId
+Browser-> API: SecretIdHash, EncryptedSecret, ExpiryTime
+API->S3:Put object of name \nSecretIdHash, value \nEncryptedSecret
+API->SQS: create queue of \nname SecretIdHash.fifo
+API->SQS: send message with\nExpiryTime to created \nSQS queue
+@enduml
+</pre>
 
 
 </html>
