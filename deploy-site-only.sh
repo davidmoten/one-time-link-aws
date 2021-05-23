@@ -1,2 +1,2 @@
 #!/bin/bash
- mvn aws:property@prop generate-resources aws:deployS3@s3 
+ mvn clean generate-resources aws:property@prop aws:deployS3@s3 
