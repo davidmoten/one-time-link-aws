@@ -2,7 +2,13 @@
 <h2>OneTimeLink Help</h2>
 <p>If you have a secret (text) that you want to communicate to someone then 
 submit your text to OneTimeLink and it will give you a link that you can give to that person. 
-That link will display the secret to that person once and only once.</p>
+</p>
+<ul>
+<li>The link will display the secret once and only once.</li>
+<li>The secret is encrypted using a key that is present in
+the generated link. Only the encrypted secret is present in backend
+storage and the backend is not aware of the key used to encrypt the secret.</li>
+</ul>
 
 <p>Make sure you communicate that link to someone via a **secure means** (like Signal, WhatsApp). If 
 you send the link to someone using a non-secure means like email 
