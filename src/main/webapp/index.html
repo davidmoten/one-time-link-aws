@@ -114,8 +114,7 @@
 	    console.log("init run");
 	}
 	
-	function enableViewButton() {
-		var viewButton = document.getElementById('decrypted');
+	function enableViewButton(viewButton) {
 		viewButton.innerHTML = "View";
 		viewButton.disabled = false;
 	}
@@ -133,25 +132,25 @@
 			.then(function (res) {
 				if (res.status == 410) {
 					d.value = "Value not found, it has already been read or has expired."
-					enableViewButton();
+					enableViewButton(viewButton);
 				} else if (!res.ok) {
 					d.value = "An error occurred: \n"+ JSON.stringify(res);
-					enableViewButton();
+					enableViewButton(viewButton);
 				} else {
 					viewButton.innerHTML = "Decrypting...";
 					res.text().then(function (x) {
 						d.value = decrypt(password, x);	
 						document.getElementById("viewButtonDiv").style.display='none';
-						enableViewButton();
+						enableViewButton(viewButton);
 					}).catch(function (error) {
 						d.value = error;
-						enableViewButton();
+						enableViewButton(viewButton);
 					});
 				}
 			})
 			.catch(function (error) {
 				d.value = error;
-				enableViewButton();
+				enableViewButton(viewButton);
 			});
 		d.style.display='block';
 	}
