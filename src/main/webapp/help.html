@@ -1,5 +1,5 @@
 <html>
-<h2>One Time Link Help</h2>
+<h2>About <b>One Time Link</b></h2>
 
 <p>If you have a secret (text) that you want to communicate to someone then 
 submit your text to One Time Link and it will give you a link that you can give
@@ -34,19 +34,48 @@ part are aware of the leaking of the secret.</p>
 <p>Version: ${project.version}</p>
 <p>When you click on the Encrypt button the following happens:</p>
 
+<img src="sequence-diagram.svg"/>
+
 <pre>
 @startuml
+actor User
+participant Browser
+participant API
+participant S3
+participant SQS
+participant Browser2
+actor Receiver
 User-> Browser: Secret
 Browser-> Browser: SecretId
 note right: 16 chars\nrandomly generated
+Browser-> Browser: Password
+note right: 16 chars\nrandomly generated
 Browser-> Browser: EncryptedSecret
-note right: Secret is encrypted \nusing AES 256\nwith key SecretId
-Browser-> Browser: SecretIdHash
-note right: Hex SHA-1 hash of SecretId
-Browser-> API: SecretIdHash, EncryptedSecret, ExpiryTime
-API->S3:Put object of name \nSecretIdHash, value \nEncryptedSecret
-API->SQS: create queue of \nname SecretIdHash.fifo
-API->SQS: send message with\nExpiryTime to created \nSQS queue
+note right: Secret is encrypted \nusing AES 256\nwith key Password\nthen encoded to Base64
+Browser-> API: store(SecretId, EncryptedSecret, ExpiryTime)
+API->S3:Put object of name \nSecretId, value \nEncryptedSecret
+activate S3
+API->SQS: create queue of \nname SecretId.fifo
+activate SQS
+API->SQS: send message with\nExpiryTime to queue
+API->Browser: url (Password + SecretId)
+Browser->User: url
+User->Receiver: url
+Receiver -> Browser2: decrypt url
+Browser2 -> API: decrypt (SecretId, EncryptedSecret)
+API->SQS: read time from queue SecretId.fifo
+SQS->API: time
+API->SQS: delete queue SecretId.fifo
+deactivate SQS
+API->S3: get EncryptedSecret\nfrom S3 bucket with\nobject name SecretId
+S3->API: EncryptedSecret
+API->S3:delete object with name SecretId
+deactivate S3
+note right: only if currentTime\nless than time
+API->Browser2: EncryptedSecret
+Browser2->Browser2:decrypt
+note right:EncryptedSecret is\nBase64 decoded\nand decrypted\nusing SecretId
+Browser2->Receiver: Secret
 @enduml
 </pre>
 
