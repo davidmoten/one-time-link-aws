@@ -33,6 +33,11 @@ part are aware of the leaking of the secret.</p>
 <h3>Implementation</h3>
 <p>Version: ${project.version}</p>
 
+<p>The critical part of this implementation is coming up with an easy cheap way of 
+guaranteeing exactly-once delivery. Yes you could achieve this using a database
+that supports transactions but there is another much simpler and cheaper way: 
+<i>create one new FIFO SQS queue per message which is disposed of on message view</i>.</p>
+
 <h4>Sequence Diagram</h4>
 
 <img src="sequence-diagram.svg"/>
