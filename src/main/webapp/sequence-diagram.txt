@@ -24,15 +24,15 @@ Browser->User: url
 User->Receiver: url
 Receiver -> Browser2: decrypt url
 Browser2 -> API: decrypt (SecretId, EncryptedSecret)
-API->SQS: read time from queue SecretId.fifo
-SQS->API: time
+API->SQS: read ExpiryTime from queue SecretId.fifo
+SQS->API: ExpiryTime
 API->SQS: delete queue SecretId.fifo
 deactivate SQS
 API->S3: get EncryptedSecret\nfrom S3 bucket with\nobject name SecretId
+note right: only if now is before ExpiryTime
 S3->API: EncryptedSecret
 API->S3:delete object with name SecretId
 deactivate S3
-note right: only if currentTime\nless than time
 API->Browser2: EncryptedSecret
 Browser2->Browser2:decrypt
 note right:EncryptedSecret is\nBase64 decoded\nand decrypted\nusing SecretId
