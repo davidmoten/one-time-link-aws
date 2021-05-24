@@ -60,6 +60,13 @@ a user may encounter a ten second delay while a new backend server is provisione
 
 <p><a href="sequence-diagram.txt">PlantUML commands</a></p>
 
+<p>Notes:</p>
+<ul>
+<li>The number of possible codes from 16 alphabetical characters (lowercase and uppercase) is ~3x10<sup>28</sup></li>
+</ul>
+
+
+
 <h4>Cleanup</h4>
 <p>There's nothing that guarantees that every message is read so we also need to 
 perform a cleanup. EVery 12 hours the contents of the data bucket in S3 are iterated
