@@ -1,15 +1,16 @@
-function random_string(C) {
-	
-    if (C === null) {
-        C = 16
+
+var ALPHABETICAL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function random_string(length) {
+    if (length === null) {
+        length = 16;
     }
-    var B = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    var D = "";
-    for (var A = 0; A < C; A++) {
-        pos = Math.floor(Math.random() * B.length);
-        D += B.charAt(pos)
+    var result = "";
+    for (var i = 0; i < length; i++) {
+        var pos = Math.floor(Math.random() * ALPHABETICAL.length);
+        result += ALPHABETICAL.charAt(pos)
     }
-    return D
+    return result;
 }
 
 function encrypt(key, value) {
