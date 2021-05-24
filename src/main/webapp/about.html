@@ -65,11 +65,11 @@ a user may encounter a ten second delay while a new backend server is provisione
 <li>The number of possible codes from 16 alphabetical characters (lowercase and uppercase) is ~3x10<sup>28</sup></li>
 </ul>
 
-
-
 <h4>Cleanup</h4>
 <p>There's nothing that guarantees that every message is read so we also need to 
-perform a cleanup. EVery 12 hours the contents of the data bucket in S3 are iterated
-and every message that has expired is removed (and its associated queue deleted).</p>
+perform a cleanup to deal with unread messages building up in storage and queues. 
+Every 12 hours an AWS Lambda function iterates the S3 data bucket objects, inspects 
+the expiry time metadata and every message that has expired is removed (and its 
+associated queue deleted).</p>
 </body>
 </html>
