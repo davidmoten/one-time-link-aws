@@ -41,7 +41,8 @@ another transport method!).</p>
 <p>The critical part of this implementation is coming up with an easy cheap way of 
 guaranteeing exactly-once delivery. Yes you could achieve this using a database
 that supports transactions but there is another much simpler and cheaper way:</p>
-<p><i>create one new FIFO SQS queue per message which is disposed of on message view</i>.</p>
+
+<p style="margin-left:4em"><i>create one new FIFO SQS queue per message which is disposed of on message view</i>.</p>
 
 <p>AWS Lambda is a great cheap solution to run the backend serverless but occasionally
 a user may encounter a ten second delay while a new backend server is provisioned 
