@@ -2,8 +2,7 @@
 <h2>About <b>One Time Link</b></h2>
 
 <p>If you have a secret (text) that you want to communicate to someone then 
-submit your text to One Time Link and it will give you a link that you can give
-to that person for them to view the secret. 
+submit your text to One Time Link and it will give you a link to send to them (by secure means).
 </p>
 <ul>
 <li>The link will display the secret once and only once.</li>
@@ -19,7 +18,6 @@ you send the link to someone using a non-secure means like email
 then you are exposed to a man-in-the-middle attack in that someone else can intercept the 
 link, view it, then create another link to forward to the receiving party. Neither the sender nor the receiving 
 part are aware of the leaking of the secret.</p>
-
  
 <h3>Instructions</h3>
 <ul>
@@ -29,6 +27,13 @@ part are aware of the leaking of the secret.</p>
 <li>Copy the link and send it to the receiver via a secure means</li>
 </ul>
 <p>
+
+<h4>What to do if the receiver cannot view the secret?</h4>
+<p>If the receiver of the link cannot view the secret then it is possible 
+that the secret has been compromised by a third party. This is really only 
+possible if the transport mechanism you use has been compromised (like non-TLS email). In this 
+situation the original secret should be changed and resent (perhaps by 
+another transport method!).</p>
 
 <h3>Implementation</h3>
 <p>Version: ${project.version}</p>
