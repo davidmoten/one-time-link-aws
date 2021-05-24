@@ -5,6 +5,39 @@
 <meta http-equiv="Pragma" content="no-cache" ></meta>
 <meta http-equiv="Expires" content="0" ></meta>
 <title>One Time Link</title>
+<style>
+.header {
+  padding: 5px;
+  text-align: left;
+  background: #A9A9A9;
+  color: white;
+  font-size: 20px;
+}
+
+.header a:link {
+  color: white;
+}
+
+/* visited link */
+.header a:visited {
+  color: white;
+}
+
+/* mouse over link */
+.header a:hover {
+  color: white;
+}
+
+/* selected link */
+.header a:active {
+  color: white;
+}
+
+.header a {
+  text-decoration: none;
+} 
+
+</style>
 <script type="text/javascript" src="js/sjcl-1.0.8.js"></script>
 <script type="text/javascript" src="js/one-time-link.js"></script>
 <script>
@@ -164,7 +197,10 @@
 </script>
 </head>
 <body>
+    <div class="all">
+    <div class="header">
 	<h3><a href="../site/index.html">One Time Link</a></h3>
+	</div>
 	<p><a href="about.html">About</a>
 	<div id="encrypt" style="display:none">
 		<form id="formEncrypt">
@@ -192,6 +228,7 @@
 	<div id="decrypt" style="display:none">
 	    <div id="viewButtonDiv"><button onclick="view(this)">View</button><br/></div>
 	    <textarea id="decrypted" style="margin-top: 10px;width:90%; height:60%; height:10em; display:none"></textarea><br/>
+	</div>
 	</div>
 	
 </body>
