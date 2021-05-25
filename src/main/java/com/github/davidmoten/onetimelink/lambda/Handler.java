@@ -3,7 +3,7 @@ package com.github.davidmoten.onetimelink.lambda;
 import static com.github.davidmoten.onetimelink.lambda.Util.environmentVariable;
 import static com.github.davidmoten.onetimelink.lambda.Util.queueName;
 
-import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,35 +15,38 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
-import com.amazonaws.services.sqs.model.CreateQueueRequest;
-import com.amazonaws.services.sqs.model.CreateQueueResult;
-import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
-import com.amazonaws.util.StringInputStream;
 import com.github.davidmoten.aws.helper.BadRequestException;
 import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
 
-public final class Handler implements RequestHandler<Map<String, Object>, String> {
+import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
+import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteQueueRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
-    @Override
+public final class Handler {
+
     public String handleRequest(Map<String, Object> input, Context context) {
         StandardRequestBodyPassThrough r = StandardRequestBodyPassThrough.from(input);
         try {
             String resourcePath = r.resourcePath().get();
             String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
             String applicationName = environmentVariable("WHO");
-            AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
-            AmazonSQS sqs = AmazonSQSClientBuilder.defaultClient();
+            S3Client s3 = S3Client.create();
+            SqsClient sqs = SqsClient.create();
             if ("/store".equals(resourcePath)) {
                 return handleStoreRequest(input, dataBucketName, applicationName, s3, sqs);
             } else if ("/get".equals(resourcePath)) {
@@ -59,10 +62,9 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             throw new ServerException(e);
         }
     }
-    
-    private static String handleStoreRequest(Map<String, Object> input, String dataBucketName,
-            String applicationName, AmazonS3 s3, AmazonSQS sqs)
-            throws InterruptedException, ExecutionException, TimeoutException {
+
+    private static String handleStoreRequest(Map<String, Object> input, String dataBucketName, String applicationName,
+            S3Client s3, SqsClient sqs) throws InterruptedException, ExecutionException, TimeoutException {
         final String key;
         final String value;
         final long expiryDurationMs;
@@ -80,42 +82,50 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         Future<?> a = executor.submit(() -> {
-            ObjectMetadata metadata = new ObjectMetadata();
-            metadata.addUserMetadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime));
-            try (InputStream in = new StringInputStream(value)) {
-                PutObjectRequest request = new PutObjectRequest(dataBucketName, key, in, metadata);
-                s3.putObject(request);
-                return null;
-            }
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime));
+            byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+            PutObjectRequest request = PutObjectRequest //
+                    .builder() //
+                    .bucket(dataBucketName) //
+                    .key(key) //
+                    .metadata(metadata) //
+                    .build();
+            s3.putObject(request, RequestBody.fromBytes(bytes));
+            return null;
         });
-        Map<String, String> attributes = new HashMap<String, String>();
-        attributes.put("FifoQueue", "true");
-        attributes.put("ContentBasedDeduplication", "true");
+        Map<QueueAttributeName, String> attributes = new HashMap<>();
+        attributes.put(QueueAttributeName.FIFO_QUEUE, "true");
+        attributes.put(QueueAttributeName.CONTENT_BASED_DEDUPLICATION, "true");
 
         // max retention for sqs is 14 days
-        attributes.put("MessageRetentionPeriod", String.valueOf(TimeUnit.DAYS.toSeconds(14)));
+        attributes.put(QueueAttributeName.MESSAGE_RETENTION_PERIOD, String.valueOf(TimeUnit.DAYS.toSeconds(14)));
 
         // visibility timeout can be low because only one user gets
         // the message but a higher value protects against race conditions (like
         // slowdowns on the AWS backend)
-        attributes.put("VisibilityTimeout", "30");
-        CreateQueueResult q = sqs.createQueue( //
-                new CreateQueueRequest() //
-                        .withQueueName(queueName(applicationName, key)) //
-                        .withAttributes(attributes));
+        attributes.put(QueueAttributeName.VISIBILITY_TIMEOUT, "30");
+        CreateQueueResponse q = sqs.createQueue( //
+                CreateQueueRequest //
+                        .builder() //
+                        .queueName(queueName(applicationName, key)) //
+                        .attributes(attributes) //
+                        .build());
+
         sqs.sendMessage( //
-                new SendMessageRequest() //
-                        .withQueueUrl(q.getQueueUrl()) //
+                SendMessageRequest.builder() //
+                        .queueUrl(q.queueUrl()) //
                         // needs a messageGroupId if FIFO but is irrelevant to us
                         // as only one item gets put on the queue
-                        .withMessageGroupId("1") //
-                        .withMessageBody(String.valueOf(expiryTime)));
+                        .messageGroupId("1") //
+                        .messageBody(String.valueOf(expiryTime)) //
+                        .build());
         a.get(1, TimeUnit.MINUTES);
         return "stored";
     }
 
     private static String handleGetRequest(StandardRequestBodyPassThrough r, String dataBucketName,
-            String applicationName, AmazonS3 s3, AmazonSQS sqs)
+            String applicationName, S3Client s3, SqsClient sqs)
             throws InterruptedException, ExecutionException, TimeoutException {
         Optional<String> k = r.queryStringParameter("key");
         if (!k.isPresent()) {
@@ -124,28 +134,35 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             String key = k.get();
             String queueName = queueName(applicationName, key);
             try {
-                String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
+                String qurl = sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName(queueName).build()).queueUrl();
 
-                List<Message> list = sqs.receiveMessage(qurl).getMessages();
+                List<Message> list = sqs.receiveMessage(ReceiveMessageRequest.builder().queueUrl(qurl).build())
+                        .messages();
                 if (list.isEmpty()) {
-                    sqs.deleteQueue(qurl);
+                    sqs.deleteQueue(DeleteQueueRequest.builder().queueUrl(qurl).build());
                     throw new GoneException("message has been read already " + key);
                 } else {
                     Message message = list.get(0);
-                    long expiryTime = Long.parseLong(message.getBody());
+                    long expiryTime = Long.parseLong(message.body());
                     // remove from queue
-                    sqs.deleteMessage(queueName, message.getReceiptHandle());
+                    sqs.deleteMessage(DeleteMessageRequest.builder().queueUrl(qurl)
+                            .receiptHandle(message.receiptHandle()).build());
                     if (expiryTime < System.currentTimeMillis()) {
                         throw new GoneException("message has expired " + key);
                     } else {
                         // perform actions in parallel
                         ExecutorService executor = Executors.newSingleThreadExecutor();
                         Future<String> result = executor.submit(() -> {
-                            String answer = s3.getObjectAsString(dataBucketName, key);
-                            s3.deleteObject(dataBucketName, key);
+                            String answer = s3.getObjectAsBytes(GetObjectRequest //
+                                    .builder() //
+                                    .bucket(dataBucketName) //
+                                    .key(key) //
+                                    .build()) //
+                                    .asString(StandardCharsets.UTF_8);
+                            s3.deleteObject(DeleteObjectRequest.builder().bucket(dataBucketName).key(key).build());
                             return answer;
                         });
-                        sqs.deleteQueue(qurl);
+                        sqs.deleteQueue(DeleteQueueRequest.builder().queueUrl(qurl).build());
                         return result.get(1, TimeUnit.MINUTES);
                     }
                 }
