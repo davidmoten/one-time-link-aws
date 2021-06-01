@@ -4,6 +4,7 @@ import static com.github.davidmoten.onetimelink.lambda.Util.environmentVariable;
 import static com.github.davidmoten.onetimelink.lambda.Util.queueName;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,8 @@ import com.amazonaws.util.StringInputStream;
 import com.github.davidmoten.aws.helper.BadRequestException;
 import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
+import com.github.davidmoten.aws.lw.client.Client;
+import com.github.davidmoten.aws.lw.client.HttpMethod;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
 
@@ -59,7 +62,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             throw new ServerException(e);
         }
     }
-    
+
     private static String handleStoreRequest(Map<String, Object> input, String dataBucketName,
             String applicationName, AmazonS3 s3, AmazonSQS sqs)
             throws InterruptedException, ExecutionException, TimeoutException {
@@ -80,13 +83,25 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         Future<?> a = executor.submit(() -> {
-            ObjectMetadata metadata = new ObjectMetadata();
-            metadata.addUserMetadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime));
-            try (InputStream in = new StringInputStream(value)) {
-                PutObjectRequest request = new PutObjectRequest(dataBucketName, key, in, metadata);
-                s3.putObject(request);
-                return null;
+            if (true) {
+                Client //
+                        .s3() //
+                        .defaultClient() //
+                        .path(dataBucketName + "/" + key) //
+                        .method(HttpMethod.PUT) //
+                        .requestBody(value.getBytes(StandardCharsets.UTF_8)) //
+                        .metadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime)) //
+                        .execute();
+            } else {
+                ObjectMetadata metadata = new ObjectMetadata();
+                metadata.addUserMetadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime));
+                try (InputStream in = new StringInputStream(value)) {
+                    PutObjectRequest request = new PutObjectRequest(dataBucketName, key, in,
+                            metadata);
+                    s3.putObject(request);
+                }
             }
+            return null;
         });
         Map<String, String> attributes = new HashMap<String, String>();
         attributes.put("FifoQueue", "true");

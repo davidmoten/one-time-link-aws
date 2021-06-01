@@ -35,6 +35,12 @@
             <artifactId>aws-helper</artifactId>
             <version>0.2.3</version>
         </dependency>
+        
+        <dependency>
+            <groupId>com.github.davidmoten</groupId>
+            <artifactId>aws-lightweight-client-java</artifactId>
+            <version>0.1-SNAPSHOT</version>
+        </dependency>
 
         <dependency>
             <groupId>com.amazonaws</groupId>
