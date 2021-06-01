@@ -38,7 +38,7 @@ public final class CleanupHandler {
                                 .path(dataBucketName + "/" + key) //
                                 .method(HttpMethod.HEAD) //
                                 .response();
-                        Optional<String> s = r.metadataFirst("Util.EXPIRY_TIME_EPOCH_MS");
+                        Optional<String> s = r.metadataFirst(Util.EXPIRY_TIME_EPOCH_MS);
                         return s.isPresent()
                                 && Long.parseLong(s.get()) < System.currentTimeMillis();
                     }) //

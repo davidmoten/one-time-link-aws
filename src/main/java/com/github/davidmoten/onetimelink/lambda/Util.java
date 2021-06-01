@@ -3,7 +3,8 @@ package com.github.davidmoten.onetimelink.lambda;
 import com.github.davidmoten.aws.helper.ServerException;
 
 final class Util {
-    static final String EXPIRY_TIME_EPOCH_MS = "expiryTimeEpochMs";
+    // use all lower case, letters and digits only
+    static final String EXPIRY_TIME_EPOCH_MS = "expirytimeepochms";
 
     private Util() {
         // prevent instantiation
