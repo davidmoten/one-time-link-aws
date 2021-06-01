@@ -103,24 +103,44 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             }
             return null;
         });
-        Map<String, String> attributes = new HashMap<String, String>();
-        attributes.put("FifoQueue", "true");
-        attributes.put("ContentBasedDeduplication", "true");
+        final String qurl; 
+        if (true) {
+            Client queues = Client.sqs().defaultClient();
+            qurl = queues.query("Action", "CreateQueue") //
+                    .query("QueueName", queueName(applicationName, key)) //
+                    .attribute("FifoQueue", "true") //
+                    .attribute("ContentBasedDeduplication", "true") //
+                    // max retention for sqs is 14 days
+                    .attribute("MessageRetentionPeriod",
+                            String.valueOf(TimeUnit.DAYS.toSeconds(14))) //
+                    // visibility timeout can be low because only one user gets
+                    // the message but a higher value protects against race conditions (like
+                    // slowdowns on the AWS backend)
+                    .attribute("VisibilityTimeout", "30") //
+                    .responseAsXml() //
+                    .content("CreateQueueResult", "QueueUrl");
+        } else {
+            Map<String, String> attributes = new HashMap<String, String>();
+            attributes.put("FifoQueue", "true");
+            attributes.put("ContentBasedDeduplication", "true");
 
-        // max retention for sqs is 14 days
-        attributes.put("MessageRetentionPeriod", String.valueOf(TimeUnit.DAYS.toSeconds(14)));
+            // max retention for sqs is 14 days
+            attributes.put("MessageRetentionPeriod", String.valueOf(TimeUnit.DAYS.toSeconds(14)));
 
-        // visibility timeout can be low because only one user gets
-        // the message but a higher value protects against race conditions (like
-        // slowdowns on the AWS backend)
-        attributes.put("VisibilityTimeout", "30");
-        CreateQueueResult q = sqs.createQueue( //
-                new CreateQueueRequest() //
-                        .withQueueName(queueName(applicationName, key)) //
-                        .withAttributes(attributes));
+            // visibility timeout can be low because only one user gets
+            // the message but a higher value protects against race conditions (like
+            // slowdowns on the AWS backend)
+            attributes.put("VisibilityTimeout", "30");
+            CreateQueueResult q = sqs.createQueue( //
+                    new CreateQueueRequest() //
+                            .withQueueName(queueName(applicationName, key)) //
+                            .withAttributes(attributes));
+            qurl = q.getQueueUrl();
+        }
+
         sqs.sendMessage( //
                 new SendMessageRequest() //
-                        .withQueueUrl(q.getQueueUrl()) //
+                        .withQueueUrl(qurl) //
                         // needs a messageGroupId if FIFO but is irrelevant to us
                         // as only one item gets put on the queue
                         .withMessageGroupId("1") //
