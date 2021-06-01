@@ -103,7 +103,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             }
             return null;
         });
-        final String qurl; 
+        final String qurl;
         if (true) {
             Client queues = Client.sqs().defaultClient();
             qurl = queues.query("Action", "CreateQueue") //
@@ -119,6 +119,12 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                     .attribute("VisibilityTimeout", "30") //
                     .responseAsXml() //
                     .content("CreateQueueResult", "QueueUrl");
+
+            queues.url(qurl) //
+                    .query("Action", "SendMessage") //
+                    .query("MessageBody", String.valueOf(expiryTime)) //
+                    .query("MessageGroupId", "1") //
+                    .execute();
         } else {
             Map<String, String> attributes = new HashMap<String, String>();
             attributes.put("FifoQueue", "true");
@@ -136,15 +142,15 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                             .withQueueName(queueName(applicationName, key)) //
                             .withAttributes(attributes));
             qurl = q.getQueueUrl();
-        }
 
-        sqs.sendMessage( //
-                new SendMessageRequest() //
-                        .withQueueUrl(qurl) //
-                        // needs a messageGroupId if FIFO but is irrelevant to us
-                        // as only one item gets put on the queue
-                        .withMessageGroupId("1") //
-                        .withMessageBody(String.valueOf(expiryTime)));
+            sqs.sendMessage( //
+                    new SendMessageRequest() //
+                            .withQueueUrl(qurl) //
+                            // needs a messageGroupId if FIFO but is irrelevant to us
+                            // as only one item gets put on the queue
+                            .withMessageGroupId("1") //
+                            .withMessageBody(String.valueOf(expiryTime)));
+        }
         a.get(1, TimeUnit.MINUTES);
         return "stored";
     }
