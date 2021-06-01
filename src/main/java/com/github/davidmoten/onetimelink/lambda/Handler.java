@@ -35,6 +35,7 @@ import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
 import com.github.davidmoten.aws.lw.client.Client;
 import com.github.davidmoten.aws.lw.client.HttpMethod;
+import com.github.davidmoten.xml.XmlElement;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
 
@@ -165,31 +166,78 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             String key = k.get();
             String queueName = queueName(applicationName, key);
             try {
-                String qurl = sqs.getQueueUrl(queueName).getQueueUrl();
-
-                List<Message> list = sqs.receiveMessage(qurl).getMessages();
-                if (list.isEmpty()) {
-                    sqs.deleteQueue(qurl);
-                    throw new GoneException("message has been read already " + key);
-                } else {
-                    Message message = list.get(0);
-                    long expiryTime = Long.parseLong(message.getBody());
-                    // remove from queue
-                    sqs.deleteMessage(queueName, message.getReceiptHandle());
-                    if (expiryTime < System.currentTimeMillis()) {
-                        throw new GoneException("message has expired " + key);
+                final String qurl;
+                Client queues = Client.sqs().defaultClient();
+                if (true) {
+                    qurl = queues //
+                            .query("Action", "GetQueueUrl") //
+                            .query("QueueName", queueName) //
+                            .responseAsXml() //
+                            .content("GetQueueUrlResult", "QueueUrl");
+                    List<XmlElement> list = queues.url(qurl) //
+                            .query("Action", "ReceiveMessage").responseAsXml() //
+                            .child("ReceiveMessageResult") //
+                            .children();
+                    if (list.isEmpty()) {
+                        queues.url(qurl) //
+                                .query("Action", "DeleteQueue") //
+                                .execute();
+                        throw new GoneException("message has been read already " + key);
                     } else {
-                        // perform actions in parallel
-                        ExecutorService executor = Executors.newSingleThreadExecutor();
-                        Future<String> result = executor.submit(() -> {
-                            String answer = s3.getObjectAsString(dataBucketName, key);
-                            s3.deleteObject(dataBucketName, key);
-                            return answer;
-                        });
+                        XmlElement message = list.get(0);
+                        long expiryTime = Long.parseLong(message.content("Body"));
+                        queues.url(qurl) //
+                                .query("Action", "DeleteMessage") //
+                                .query("ReceiptHandle", message.content("ReceiptHandle")) //
+                                .execute();
+                        if (expiryTime < System.currentTimeMillis()) {
+                            throw new GoneException("message has expired " + key);
+                        } else {
+                            // perform actions in parallel
+                            ExecutorService executor = Executors.newSingleThreadExecutor();
+                            Future<String> result = executor.submit(() -> {
+                                Client sss = Client.s3().defaultClient();
+                                String answer = sss //
+                                        .path(dataBucketName + "/" + key) //
+                                        .responseAsUtf8();
+                                sss.path(dataBucketName + "/" + key) //
+                                        .method(HttpMethod.DELETE) //
+                                        .execute();
+                                return answer;
+                            });
+                            queues.url(qurl) //
+                                    .query("Action", "DeleteQueue") //
+                                    .execute();
+                            return result.get(1, TimeUnit.MINUTES);
+                        }
+                    }
+                } else {
+                    qurl = sqs.getQueueUrl(queueName).getQueueUrl();
+                    List<Message> list = sqs.receiveMessage(qurl).getMessages();
+                    if (list.isEmpty()) {
                         sqs.deleteQueue(qurl);
-                        return result.get(1, TimeUnit.MINUTES);
+                        throw new GoneException("message has been read already " + key);
+                    } else {
+                        Message message = list.get(0);
+                        long expiryTime = Long.parseLong(message.getBody());
+                        // remove from queue
+                        sqs.deleteMessage(queueName, message.getReceiptHandle());
+                        if (expiryTime < System.currentTimeMillis()) {
+                            throw new GoneException("message has expired " + key);
+                        } else {
+                            // perform actions in parallel
+                            ExecutorService executor = Executors.newSingleThreadExecutor();
+                            Future<String> result = executor.submit(() -> {
+                                String answer = s3.getObjectAsString(dataBucketName, key);
+                                s3.deleteObject(dataBucketName, key);
+                                return answer;
+                            });
+                            sqs.deleteQueue(qurl);
+                            return result.get(1, TimeUnit.MINUTES);
+                        }
                     }
                 }
+              //TODO detect queue does not exist with lightweight client
             } catch (QueueDoesNotExistException e) {
                 throw new GoneException("message has been read already (queue does not exist)");
             }
