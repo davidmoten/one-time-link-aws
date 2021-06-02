@@ -21,7 +21,6 @@ import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
 import com.github.davidmoten.aws.lw.client.Client;
 import com.github.davidmoten.aws.lw.client.HttpMethod;
-import com.github.davidmoten.aws.lw.client.ServiceException;
 import com.github.davidmoten.xml.XmlElement;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
@@ -33,8 +32,8 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             String resourcePath = r.resourcePath().get();
             String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
             String applicationName = environmentVariable("WHO");
-            Client s3 = Client.s3().defaultClient();
-            Client sqs = Client.sqs().defaultClient();
+            Client s3 = Util.createS3Client();
+            Client sqs = Util.createSqsClient();
             if ("/store".equals(resourcePath)) {
                 return handleStoreRequest(input, dataBucketName, applicationName, s3, sqs);
             } else if ("/get".equals(resourcePath)) {
@@ -153,12 +152,8 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                         return result.get(1, TimeUnit.MINUTES);
                     }
                 }
-            } catch (ServiceException e) {
-                if (e.getMessage().contains(AwsConstants.NON_EXISTENT_QUEUE)) {
-                    throw new GoneException("message has been read already (queue does not exist)");
-                } else {
-                    throw e;
-                }
+            } catch (QueueDoesNotExistException e) {
+                throw new GoneException("message has been read already (queue does not exist)");
             }
         }
     }

@@ -10,15 +10,14 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.github.davidmoten.aws.lw.client.Client;
 import com.github.davidmoten.aws.lw.client.HttpMethod;
 import com.github.davidmoten.aws.lw.client.Response;
-import com.github.davidmoten.aws.lw.client.ServiceException;
 
 public final class CleanupHandler {
 
     public String handle(Map<String, Object> input, Context context) {
         String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
         String applicationName = environmentVariable("WHO");
-        Client s3 = Client.s3().defaultClient();
-        Client sqs = Client.sqs().defaultClient();
+        Client s3 = Util.createS3Client();
+        Client sqs = Util.createSqsClient();
         long count = s3 //
                 .url("https://" + dataBucketName + ".s3." + s3.regionName() + ".amazonaws.com") //
                 .query("list-type", "2") //
@@ -45,10 +44,8 @@ public final class CleanupHandler {
                         sqs.url(queueUrl) //
                                 .query("Action", "DeleteQueue") //
                                 .execute();
-                    } catch (ServiceException e) {
-                        if (!e.getMessage().contains(AwsConstants.NON_EXISTENT_QUEUE)) {
-                            throw e;
-                        }
+                    } catch (QueueDoesNotExistException e) {
+                        // ignore
                     }
                     s3.path(dataBucketName + "/" + key) //
                             .method(HttpMethod.DELETE) //
