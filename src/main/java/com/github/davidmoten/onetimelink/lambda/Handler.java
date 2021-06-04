@@ -21,7 +21,7 @@ import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
 import com.github.davidmoten.aws.lw.client.Client;
 import com.github.davidmoten.aws.lw.client.HttpMethod;
-import com.github.davidmoten.xml.XmlElement;
+import com.github.davidmoten.aws.lw.client.xml.XmlElement;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
 
