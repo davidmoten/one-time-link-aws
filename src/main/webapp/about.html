@@ -51,7 +51,7 @@ that supports transactions but there is another much simpler and cheaper way:</p
 <p style="margin-left:2em"><i>create one new FIFO SQS queue per message which is disposed of on message view</i>.</p>
 
 <p>AWS Lambda is a great cheap solution to run the backend serverless but occasionally
-a user may encounter a ten second delay while a new backend server is provisioned 
+a user may encounter a six second delay while a new backend server is provisioned 
 ("cold start"). Not a big deal every now and then.</p>
 
 <h4>Sequence Diagram</h4>
