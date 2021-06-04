@@ -120,7 +120,7 @@ Resources:
         S3Key: !Sub '${artifactObjectName}'
       FunctionName: !Sub '${application}'
       Handler: !Sub '${handler}'
-      MemorySize: 512
+      MemorySize: 2000
       Timeout: 300 # seconds
       Role: !GetAtt 
         - LambdaFunctionRole
