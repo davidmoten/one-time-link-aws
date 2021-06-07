@@ -70,10 +70,10 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         Future<?> a = executor.submit(() -> {
-            putObject(dataBucketName, s3, key, value, expiryTime);
+            putObject(s3, dataBucketName, key, value, expiryTime);
             return null;
         });
-        String qurl = createFifoQueue(applicationName, sqs, key);
+        String qurl = createFifoQueue(sqs, applicationName, key);
 
         sendMessage(sqs, expiryTime, qurl);
 
@@ -82,7 +82,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         return "stored";
     }
 
-    private static void putObject(String dataBucketName, Client s3, final String key,
+    private static void putObject(Client s3, String dataBucketName, final String key,
             final String value, long expiryTime) {
         s3.path(dataBucketName + "/" + key) //
                 .method(HttpMethod.PUT) //
@@ -91,7 +91,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 .execute();
     }
 
-    private static String createFifoQueue(String applicationName, Client sqs, final String key) {
+    private static String createFifoQueue(Client sqs, String applicationName, final String key) {
         String qurl = sqs.query("Action", "CreateQueue") //
                 .query("QueueName", queueName(applicationName, key)) //
                 .attribute("FifoQueue", "true") //
