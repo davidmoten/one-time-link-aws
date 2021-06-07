@@ -70,13 +70,28 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         Future<?> a = executor.submit(() -> {
-            s3.path(dataBucketName + "/" + key) //
-                    .method(HttpMethod.PUT) //
-                    .requestBody(value.getBytes(StandardCharsets.UTF_8)) //
-                    .metadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime)) //
-                    .execute();
+            putObject(dataBucketName, s3, key, value, expiryTime);
             return null;
         });
+        String qurl = createFifoQueue(applicationName, sqs, key);
+
+        sendMessage(sqs, expiryTime, qurl);
+
+        // wait for the async action to finish
+        a.get(1, TimeUnit.MINUTES);
+        return "stored";
+    }
+
+    private static void putObject(String dataBucketName, Client s3, final String key,
+            final String value, long expiryTime) {
+        s3.path(dataBucketName + "/" + key) //
+                .method(HttpMethod.PUT) //
+                .requestBody(value.getBytes(StandardCharsets.UTF_8)) //
+                .metadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime)) //
+                .execute();
+    }
+
+    private static String createFifoQueue(String applicationName, Client sqs, final String key) {
         String qurl = sqs.query("Action", "CreateQueue") //
                 .query("QueueName", queueName(applicationName, key)) //
                 .attribute("FifoQueue", "true") //
@@ -89,15 +104,15 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 .attribute("VisibilityTimeout", "30") //
                 .responseAsXml() //
                 .content("CreateQueueResult", "QueueUrl");
+        return qurl;
+    }
 
+    private static void sendMessage(Client sqs, long expiryTime, String qurl) {
         sqs.url(qurl) //
                 .query("Action", "SendMessage") //
                 .query("MessageBody", String.valueOf(expiryTime)) //
                 .query("MessageGroupId", "1") //
                 .execute();
-        // wait for the async action to finish
-        a.get(1, TimeUnit.MINUTES);
-        return "stored";
     }
 
     private static String handleGetRequest(StandardRequestBodyPassThrough r, String dataBucketName,
