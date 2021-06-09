@@ -25,6 +25,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.internal.handlers.EndpointAddressInterceptor;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
@@ -149,7 +150,8 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
 //                .query("MessageBody", String.valueOf(expiryTime)) //
 //                .query("MessageGroupId", "1") //
 //                .execute();
-        sqs.sendMessage(SendMessageRequest.builder().messageBody(String.valueOf(expiryTime)).messageGroupId("1").build());
+        sqs.sendMessage(SendMessageRequest.builder().queueUrl(qurl).messageBody(String.valueOf(expiryTime))
+                .messageGroupId("1").build());
     }
 
     private static String handleGetRequest(StandardRequestBodyPassThrough r, String dataBucketName,
