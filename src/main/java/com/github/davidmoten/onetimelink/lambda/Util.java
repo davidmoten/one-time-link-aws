@@ -1,7 +1,6 @@
 package com.github.davidmoten.onetimelink.lambda;
 
 import com.github.davidmoten.aws.helper.ServerException;
-import com.github.davidmoten.aws.lw.client.Client;
 
 final class Util {
     // use all lower case, letters and digits only
@@ -25,17 +24,17 @@ final class Util {
         }
     }
 
-    static Client createS3Client() {
-        return Client.s3().defaultClient().build();
-    }
-
-    static Client createSqsClient() {
-        return Client //
-                .sqs() //
-                .defaultClient() //
-                .exception( //
-                        x -> !x.isOk() && x.contentUtf8().contains(AwsConstants.NON_EXISTENT_QUEUE), //
-                        x -> new QueueDoesNotExistException(x.contentUtf8())) //
-                .build();
-    }
+//    static Client createS3Client() {
+//        return Client.s3().defaultClient().build();
+//    }
+//
+//    static Client createSqsClient() {
+//        return Client //
+//                .sqs() //
+//                .defaultClient() //
+//                .exception( //
+//                        x -> !x.isOk() && x.contentUtf8().contains(AwsConstants.NON_EXISTENT_QUEUE), //
+//                        x -> new QueueDoesNotExistException(x.contentUtf8())) //
+//                .build();
+//    }
 }

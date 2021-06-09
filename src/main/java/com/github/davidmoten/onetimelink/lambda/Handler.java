@@ -4,9 +4,9 @@ import static com.github.davidmoten.onetimelink.lambda.Util.environmentVariable;
 import static com.github.davidmoten.onetimelink.lambda.Util.queueName;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,9 +19,18 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.github.davidmoten.aws.helper.BadRequestException;
 import com.github.davidmoten.aws.helper.ServerException;
 import com.github.davidmoten.aws.helper.StandardRequestBodyPassThrough;
-import com.github.davidmoten.aws.lw.client.Client;
-import com.github.davidmoten.aws.lw.client.HttpMethod;
-import com.github.davidmoten.aws.lw.client.xml.XmlElement;
+
+import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
+import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
 
@@ -32,8 +41,19 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             String resourcePath = r.resourcePath().get();
             String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
             String applicationName = environmentVariable("WHO");
-            Client s3 = Util.createS3Client();
-            Client sqs = Util.createSqsClient();
+            S3Client s3 = S3Client //
+                    .builder() //
+                    .region(Region.of(System.getenv("AWS_REGION"))) //
+                    .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
+                    .httpClient(UrlConnectionHttpClient.builder().build()) //
+                    .build();
+            SqsClient sqs = SqsClient //
+                    .builder() //
+                    .region(Region.of(System.getenv("AWS_REGION"))) //
+                    .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
+                    .httpClient(UrlConnectionHttpClient.builder().build()) //
+                    .build();
+
             if ("/store".equals(resourcePath)) {
                 return handleStoreRequest(input, dataBucketName, applicationName, s3, sqs);
             } else if ("/get".equals(resourcePath)) {
@@ -50,9 +70,8 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         }
     }
 
-    private static String handleStoreRequest(Map<String, Object> input, String dataBucketName,
-            String applicationName, Client s3, Client sqs)
-            throws InterruptedException, ExecutionException, TimeoutException {
+    private static String handleStoreRequest(Map<String, Object> input, String dataBucketName, String applicationName,
+            S3Client s3, SqsClient sqs) throws InterruptedException, ExecutionException, TimeoutException {
         final String key;
         final String value;
         final long expiryDurationMs;
@@ -82,94 +101,60 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
         return "stored";
     }
 
-    private static void putObject(Client s3, String dataBucketName, final String key,
-            final String value, long expiryTime) {
-        s3.path(dataBucketName + "/" + key) //
-                .method(HttpMethod.PUT) //
-                .requestBody(value.getBytes(StandardCharsets.UTF_8)) //
-                .metadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime)) //
-                .execute();
+    private static void putObject(S3Client s3, String dataBucketName, final String key, final String value,
+            long expiryTime) {
+//        s3.path(dataBucketName + "/" + key) //
+//                .method(HttpMethod.PUT) //
+//                .requestBody(value.getBytes(StandardCharsets.UTF_8)) //
+//                .metadata(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime)) //
+//                .execute();
+        s3.putObject(PutObjectRequest.builder() //
+                .bucket(dataBucketName) //
+                .key(key) //
+                .metadata(Collections.singletonMap(Util.EXPIRY_TIME_EPOCH_MS, String.valueOf(expiryTime))).build(),
+                RequestBody.fromBytes(value.getBytes(StandardCharsets.UTF_8)));
+
     }
 
-    private static String createFifoQueue(Client sqs, String applicationName, final String key) {
-        String qurl = sqs.query("Action", "CreateQueue") //
-                .query("QueueName", queueName(applicationName, key)) //
-                .attribute("FifoQueue", "true") //
-                .attribute("ContentBasedDeduplication", "true") //
-                // max retention for sqs is 14 days
-                .attribute("MessageRetentionPeriod", String.valueOf(TimeUnit.DAYS.toSeconds(14))) //
-                // visibility timeout can be low because only one user gets
-                // the message but a higher value protects against race conditions (like
-                // slowdowns on the AWS backend)
-                .attribute("VisibilityTimeout", "30") //
-                .responseAsXml() //
-                .content("CreateQueueResult", "QueueUrl");
-        return qurl;
+    private static String createFifoQueue(SqsClient sqs, String applicationName, final String key) {
+//        String qurl = sqs.query("Action", "CreateQueue") //
+//                .query("QueueName", queueName(applicationName, key)) //
+//                .attribute("FifoQueue", "true") //
+//                .attribute("ContentBasedDeduplication", "true") //
+//                // max retention for sqs is 14 days
+//                .attribute("MessageRetentionPeriod", String.valueOf(TimeUnit.DAYS.toSeconds(14))) //
+//                // visibility timeout can be low because only one user gets
+//                // the message but a higher value protects against race conditions (like
+//                // slowdowns on the AWS backend)
+//                .attribute("VisibilityTimeout", "30") //
+//                .responseAsXml() //
+//                .content("CreateQueueResult", "QueueUrl");
+        Map<QueueAttributeName, String> attributes = new HashMap<>();
+        attributes.put(QueueAttributeName.FIFO_QUEUE, "true");
+        attributes.put(QueueAttributeName.CONTENT_BASED_DEDUPLICATION, "true");
+        // max retention for sqs is 14 days
+        attributes.put(QueueAttributeName.MESSAGE_RETENTION_PERIOD, String.valueOf(TimeUnit.DAYS.toSeconds(14)));
+        // visibility timeout can be low because only one user gets
+        // the message but a higher value protects against race conditions (like
+        // slowdowns on the AWS backend)
+        attributes.put(QueueAttributeName.VISIBILITY_TIMEOUT, "30");
+        CreateQueueResponse r = sqs.createQueue(
+                CreateQueueRequest.builder().queueName(queueName(applicationName, key)).attributes(attributes).build());
+        return r.queueUrl();
     }
 
-    private static void sendMessage(Client sqs, long expiryTime, String qurl) {
-        sqs.url(qurl) //
-                .query("Action", "SendMessage") //
-                .query("MessageBody", String.valueOf(expiryTime)) //
-                .query("MessageGroupId", "1") //
-                .execute();
+    private static void sendMessage(SqsClient sqs, long expiryTime, String qurl) {
+//        sqs.url(qurl) //
+//                .query("Action", "SendMessage") //
+//                .query("MessageBody", String.valueOf(expiryTime)) //
+//                .query("MessageGroupId", "1") //
+//                .execute();
+        sqs.sendMessage(SendMessageRequest.builder().messageBody(String.valueOf(expiryTime)).messageGroupId("1").build());
     }
 
     private static String handleGetRequest(StandardRequestBodyPassThrough r, String dataBucketName,
-            String applicationName, Client s3, Client sqs)
+            String applicationName, S3Client s3, SqsClient sqs)
             throws InterruptedException, ExecutionException, TimeoutException {
-        Optional<String> k = r.queryStringParameter("key");
-        if (!k.isPresent()) {
-            throw new BadRequestException("key parameter not present");
-        } else {
-            String key = k.get();
-            String queueName = queueName(applicationName, key);
-            try {
-                final String qurl;
-                qurl = sqs //
-                        .query("Action", "GetQueueUrl") //
-                        .query("QueueName", queueName) //
-                        .responseAsXml() //
-                        .content("GetQueueUrlResult", "QueueUrl");
-                List<XmlElement> list = sqs.url(qurl) //
-                        .query("Action", "ReceiveMessage").responseAsXml() //
-                        .child("ReceiveMessageResult") //
-                        .children();
-                if (list.isEmpty()) {
-                    sqs.url(qurl) //
-                            .query("Action", "DeleteQueue") //
-                            .execute();
-                    throw new GoneException("message has been read already " + key);
-                } else {
-                    XmlElement message = list.get(0);
-                    long expiryTime = Long.parseLong(message.content("Body"));
-                    sqs.url(qurl) //
-                            .query("Action", "DeleteMessage") //
-                            .query("ReceiptHandle", message.content("ReceiptHandle")) //
-                            .execute();
-                    if (expiryTime < System.currentTimeMillis()) {
-                        throw new GoneException("message has expired " + key);
-                    } else {
-                        // perform actions in parallel
-                        ExecutorService executor = Executors.newSingleThreadExecutor();
-                        Future<String> result = executor.submit(() -> {
-                            String answer = s3 //
-                                    .path(dataBucketName + "/" + key) //
-                                    .responseAsUtf8();
-                            s3.path(dataBucketName + "/" + key) //
-                                    .method(HttpMethod.DELETE) //
-                                    .execute();
-                            return answer;
-                        });
-                        sqs.url(qurl) //
-                                .query("Action", "DeleteQueue") //
-                                .execute();
-                        return result.get(1, TimeUnit.MINUTES);
-                    }
-                }
-            } catch (QueueDoesNotExistException e) {
-                throw new GoneException("message has been read already (queue does not exist)");
-            }
-        }
+        return "";
     }
 }
