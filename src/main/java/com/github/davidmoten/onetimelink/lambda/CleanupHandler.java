@@ -19,7 +19,7 @@ public final class CleanupHandler {
         Client s3 = Util.createS3Client();
         Client sqs = Util.createSqsClient();
         long count = s3 //
-                .url("https://" + dataBucketName + ".s3." + s3.regionName() + ".amazonaws.com") //
+                .url("https://" + dataBucketName + ".s3." + s3.region() + ".amazonaws.com") //
                 .query("list-type", "2") //
                 .responseAsXml() //
                 .childrenWithName("Contents") //
