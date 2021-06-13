@@ -125,45 +125,26 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             String key = k.get();
             String queueName = queueName(applicationName, key);
             try {
-                final String qurl;
-                qurl = sqs //
-                        .query("Action", "GetQueueUrl") //
-                        .query("QueueName", queueName) //
-                        .responseAsXml() //
-                        .content("GetQueueUrlResult", "QueueUrl");
-                List<XmlElement> list = sqs.url(qurl) //
-                        .query("Action", "ReceiveMessage").responseAsXml() //
-                        .child("ReceiveMessageResult") //
-                        .children();
+                String qurl = getQueueUrl(sqs, queueName);
+                List<XmlElement> list = receiveMessages(sqs, qurl);
                 if (list.isEmpty()) {
-                    sqs.url(qurl) //
-                            .query("Action", "DeleteQueue") //
-                            .execute();
+                    deleteQueue(sqs, qurl);
                     throw new GoneException("message has been read already " + key);
                 } else {
                     XmlElement message = list.get(0);
                     long expiryTime = Long.parseLong(message.content("Body"));
-                    sqs.url(qurl) //
-                            .query("Action", "DeleteMessage") //
-                            .query("ReceiptHandle", message.content("ReceiptHandle")) //
-                            .execute();
+                    deleteMessage(sqs, qurl, message);
                     if (expiryTime < System.currentTimeMillis()) {
                         throw new GoneException("message has expired " + key);
                     } else {
                         // perform actions in parallel
                         ExecutorService executor = Executors.newSingleThreadExecutor();
                         Future<String> result = executor.submit(() -> {
-                            String answer = s3 //
-                                    .path(dataBucketName + "/" + key) //
-                                    .responseAsUtf8();
-                            s3.path(dataBucketName + "/" + key) //
-                                    .method(HttpMethod.DELETE) //
-                                    .execute();
+                            String answer = getS3Object(dataBucketName, s3, key);
+                            deleteS3Object(dataBucketName, s3, key);
                             return answer;
                         });
-                        sqs.url(qurl) //
-                                .query("Action", "DeleteQueue") //
-                                .execute();
+                        deleteQueue(sqs, qurl);
                         return result.get(1, TimeUnit.MINUTES);
                     }
                 }
@@ -171,5 +152,46 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
                 throw new GoneException("message has been read already (queue does not exist)");
             }
         }
+    }
+
+    private static String getS3Object(String dataBucketName, Client s3, String key) {
+        return s3 //
+                .path(dataBucketName + "/" + key) //
+                .responseAsUtf8();
+    }
+
+    private static void deleteS3Object(String dataBucketName, Client s3, String key) {
+        s3.path(dataBucketName + "/" + key) //
+                .method(HttpMethod.DELETE) //
+                .execute();
+    }
+
+    private static void deleteMessage(Client sqs, String qurl, XmlElement message) {
+        sqs.url(qurl) //
+                .query("Action", "DeleteMessage") //
+                .query("ReceiptHandle", message.content("ReceiptHandle")) //
+                .execute();
+    }
+
+    private static void deleteQueue(Client sqs, String qurl) {
+        sqs.url(qurl) //
+                .query("Action", "DeleteQueue") //
+                .execute();
+    }
+
+    private static List<XmlElement> receiveMessages(Client sqs, String qurl) {
+        return sqs.url(qurl) //
+                .query("Action", "ReceiveMessage") //
+                .responseAsXml() //
+                .child("ReceiveMessageResult") //
+                .children();
+    }
+
+    private static String getQueueUrl(Client sqs, String queueName) {
+        return sqs //
+                .query("Action", "GetQueueUrl") //
+                .query("QueueName", queueName) //
+                .responseAsXml() //
+                .content("GetQueueUrlResult", "QueueUrl");
     }
 }
