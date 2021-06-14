@@ -12,12 +12,14 @@ import com.github.davidmoten.aws.lw.client.HttpMethod;
 import com.github.davidmoten.aws.lw.client.Response;
 
 public final class CleanupHandler {
+    
+    private static final String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
+    private static final String applicationName = environmentVariable("WHO");
+    private static final Client s3 = Util.createS3Client();
+    private static final Client sqs = Util.createSqsClient();
 
     public String handle(Map<String, Object> input, Context context) {
-        String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
-        String applicationName = environmentVariable("WHO");
-        Client s3 = Util.createS3Client();
-        Client sqs = Util.createSqsClient();
+
         long count = s3 //
                 .url("https://" + dataBucketName + ".s3." + s3.region() + ".amazonaws.com") //
                 .query("list-type", "2") //

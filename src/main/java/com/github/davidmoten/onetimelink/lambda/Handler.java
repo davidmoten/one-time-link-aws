@@ -24,16 +24,17 @@ import com.github.davidmoten.aws.lw.client.HttpMethod;
 import com.github.davidmoten.aws.lw.client.xml.XmlElement;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
+    
+    private static final String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
+    private static final String applicationName = environmentVariable("WHO");
+    private static final Client s3 = Util.createS3Client();
+    private static final Client sqs = Util.createSqsClient();
 
     @Override
     public String handleRequest(Map<String, Object> input, Context context) {
         StandardRequestBodyPassThrough r = StandardRequestBodyPassThrough.from(input);
         try {
             String resourcePath = r.resourcePath().get();
-            String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
-            String applicationName = environmentVariable("WHO");
-            Client s3 = Util.createS3Client();
-            Client sqs = Util.createSqsClient();
             if ("/store".equals(resourcePath)) {
                 return handleStoreRequest(input, dataBucketName, applicationName, s3, sqs);
             } else if ("/get".equals(resourcePath)) {
