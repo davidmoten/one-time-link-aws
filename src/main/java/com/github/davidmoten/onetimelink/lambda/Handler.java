@@ -33,6 +33,19 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
+    
+    private static S3Client s3 = S3Client //
+            .builder() //
+            .region(Region.of(System.getenv("AWS_REGION"))) //
+            .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
+            .httpClient(UrlConnectionHttpClient.builder().build()) //
+            .build();
+    private static SqsClient sqs = SqsClient //
+            .builder() //
+            .region(Region.of(System.getenv("AWS_REGION"))) //
+            .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
+            .httpClient(UrlConnectionHttpClient.builder().build()) //
+            .build();
 
     @Override
     public String handleRequest(Map<String, Object> input, Context context) {
@@ -41,18 +54,6 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
             String resourcePath = r.resourcePath().get();
             String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
             String applicationName = environmentVariable("WHO");
-            S3Client s3 = S3Client //
-                    .builder() //
-                    .region(Region.of(System.getenv("AWS_REGION"))) //
-                    .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
-                    .httpClient(UrlConnectionHttpClient.builder().build()) //
-                    .build();
-            SqsClient sqs = SqsClient //
-                    .builder() //
-                    .region(Region.of(System.getenv("AWS_REGION"))) //
-                    .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
-                    .httpClient(UrlConnectionHttpClient.builder().build()) //
-                    .build();
 
             if ("/store".equals(resourcePath)) {
                 return handleStoreRequest(input, dataBucketName, applicationName, s3, sqs);
