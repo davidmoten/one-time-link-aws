@@ -22,7 +22,7 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
-import com.amazonaws.services.sqs.model.QueueAttributeName;
+import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.amazonaws.util.StringInputStream;
 import com.github.davidmoten.aws.helper.BadRequestException;
@@ -123,18 +123,19 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
 //                .attribute("VisibilityTimeout", "30") //
 //                .responseAsXml() //
 //                .content("CreateQueueResult", "QueueUrl");
+
         Map<String, String> attributes = new HashMap<>();
-        attributes.put(QueueAttributeName.FIFO_QUEUE, "true");
-        attributes.put(QueueAttributeName.CONTENT_BASED_DEDUPLICATION, "true");
+        attributes.put("FifoQueue", "true");
+        attributes.put("ContentBasedDeduplication", "true");
         // max retention for sqs is 14 days
-        attributes.put(QueueAttributeName.MESSAGE_RETENTION_PERIOD, String.valueOf(TimeUnit.DAYS.toSeconds(14)));
+        attributes.put("MessageRetentionPeriod", String.valueOf(TimeUnit.DAYS.toSeconds(14)));
         // visibility timeout can be low because only one user gets
         // the message but a higher value protects against race conditions (like
         // slowdowns on the AWS backend)
-        attributes.put(QueueAttributeName.VISIBILITY_TIMEOUT, "30");
-        CreateQueueResponse r = sqs.createQueue(
-                new CreateQueueRequest(queueName(applicationName, key)).withAttributes(attributes));
-        return r.queueUrl();
+        attributes.put("VisibilityTimeout", "30");
+        CreateQueueResult r = sqs
+                .createQueue(new CreateQueueRequest(queueName(applicationName, key)).withAttributes(attributes));
+        return r.getQueueUrl();
     }
 
     private static void sendMessage(AmazonSQS sqs, long expiryTime, String qurl) {
@@ -143,8 +144,7 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
 //                .query("MessageBody", String.valueOf(expiryTime)) //
 //                .query("MessageGroupId", "1") //
 //                .execute();
-        sqs.sendMessage(SendMessageRequest.builder().queueUrl(qurl).messageBody(String.valueOf(expiryTime))
-                .messageGroupId("1").build());
+        sqs.sendMessage(new SendMessageRequest(qurl, String.valueOf(expiryTime)).withMessageGroupId("1"));
     }
 
     private static String handleGetRequest(StandardRequestBodyPassThrough r, String dataBucketName,
