@@ -35,3 +35,10 @@ The deploy script does these steps:
 * set new domain as alias for apig hostname
 * associate new cert with apig
 * create Route53 recordset to associate domain name with api gateway
+
+### Releases
+A properly tagged version is deployed if you run
+
+```java
+./release.sh <VERSION>
+```
