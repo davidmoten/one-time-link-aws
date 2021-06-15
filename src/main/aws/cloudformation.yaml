@@ -81,6 +81,8 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       Policies:
         # don't bother with modal name because is embedded policy
         - PolicyName: data-bucket-s3-policy
