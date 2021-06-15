@@ -19,7 +19,7 @@ final class Util {
         String value = System.getenv(name);
         if (value == null) {
             throw new ServerException(
-                    "environment variable " + name + " (the application name) not set");
+                    "environment variable " + name + " not set");
         } else {
             return value;
         }
