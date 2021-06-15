@@ -34,13 +34,13 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public final class Handler implements RequestHandler<Map<String, Object>, String> {
     
-    private static S3Client s3 = S3Client //
+    private static final S3Client s3 = S3Client //
             .builder() //
             .region(Region.of(System.getenv("AWS_REGION"))) //
             .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
             .httpClient(UrlConnectionHttpClient.builder().build()) //
             .build();
-    private static SqsClient sqs = SqsClient //
+    private static final SqsClient sqs = SqsClient //
             .builder() //
             .region(Region.of(System.getenv("AWS_REGION"))) //
             .credentialsProvider(EnvironmentVariableCredentialsProvider.create()) //
