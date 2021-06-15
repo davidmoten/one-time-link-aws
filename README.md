@@ -4,6 +4,8 @@ This is the source for https://onetimelink.davidmoten.org/prod/site/index.html w
 
 <img src="https://github.com/davidmoten/one-time-link/raw/master/src/docs/one-time-link.gif"/>
 
+## Sequence Diagram
+
 <img src="https://github.com/davidmoten/one-time-link-aws/raw/master/src/main/webapp/sequence-diagram.svg"/>
 
 ## Deployment
