@@ -1,6 +1,6 @@
 # one-time-link-aws
 
-This is the source for https://onetimelink.davidmoten.org/prod/site/index.html which is an AWS deployment of https://github.com/davidmoten/one-time-link. This project uses a neat trick to ensure exactly-once delivery of an encrypted message.
+This is the source for https://onetimelink.davidmoten.org/prod/site/index.html which is an AWS deployment of https://github.com/davidmoten/one-time-link. This project uses a neat trick to ensure exactly-once delivery of an encrypted message by creating a FIFO SQS queue per message (and destroying the message and queue on read).
 
 <img src="https://github.com/davidmoten/one-time-link/raw/master/src/docs/one-time-link.gif"/>
 
