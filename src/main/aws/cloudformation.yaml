@@ -128,8 +128,6 @@ Resources:
         - LambdaFunctionRole
         - Arn
       Runtime: java8
-      TracingConfig: 
-        Mode: Active
       Environment:
         Variables:
           WHO: !Sub "${application}"
