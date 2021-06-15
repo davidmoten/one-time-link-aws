@@ -1,8 +1,6 @@
-# openapi-to-plantuml-aws-api
+# one-time-link-aws
 
-This is the source for https://openapi-to-puml.davidmoten.org/prod/site/index.html which converts OpenAPI definitions to PlantUML online. The site uses AWS API Gateway with Lambda and S3 integrations.
-
-This project is a very useful resource if you want to have a custom domain name with a valid certificate pointing to an Api Gateway that uses java Lambda and also integrates with an S3 public bucket.
+This is the source for https://onetimelink.davidmoten.org/prod/site/index.html which is an AWS deployment of https://github.com/davidmoten/one-time-link.
 
 ## Deployment
 
