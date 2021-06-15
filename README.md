@@ -2,6 +2,8 @@
 
 This is the source for https://onetimelink.davidmoten.org/prod/site/index.html which is an AWS deployment of https://github.com/davidmoten/one-time-link. This project uses a neat trick to ensure exactly-once delivery of an encrypted message.
 
+<img src="https://github.com/davidmoten/one-time-link/raw/master/src/docs/one-time-link.gif"/>
+
 <img src="https://github.com/davidmoten/one-time-link-aws/raw/master/src/main/webapp/sequence-diagram.svg"/>
 
 ## Deployment
