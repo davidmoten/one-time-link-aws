@@ -33,16 +33,14 @@ public final class Handler implements RequestHandler<Map<String, Object>, String
 
     private static final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
     private static final AmazonSQS sqs = AmazonSQSClientBuilder.defaultClient();
-    private static String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
-    private static String applicationName = environmentVariable("WHO");
+    private static final String dataBucketName = environmentVariable("DATA_BUCKET_NAME");
+    private static final String applicationName = environmentVariable("WHO");
 
     @Override
     public String handleRequest(Map<String, Object> input, Context context) {
         StandardRequestBodyPassThrough r = StandardRequestBodyPassThrough.from(input);
         try {
             String resourcePath = r.resourcePath().get();
-            
-
             if ("/store".equals(resourcePath)) {
                 return handleStoreRequest(input, dataBucketName, applicationName, s3, sqs);
             } else if ("/get".equals(resourcePath)) {
