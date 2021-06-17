@@ -112,7 +112,16 @@ Resources:
               Effect: Allow
               Resource:
               - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${application}*"
-              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${application}*"               
+              - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${application}*"
+        - PolicyName: xray-lambda-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+            - Action:
+              - "xray:PutTraceSegments"
+              - "xray:PutTelemetryRecords"
+              Effect: Allow
+              Resource: "*"               
 
   LambdaFunction:
     Type: AWS::Lambda::Function
@@ -128,6 +137,8 @@ Resources:
         - LambdaFunctionRole
         - Arn
       Runtime: java8
+      TracingConfig: 
+        Mode: Active
       Environment:
         Variables:
           WHO: !Sub "${application}"
