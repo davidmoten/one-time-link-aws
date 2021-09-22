@@ -472,6 +472,7 @@ Resources:
     Properties:
       DomainName: !Ref myDomainName
       RestApiId: !Ref RestApi
+      Stage: !Ref stage
           
   Route53RecordSetGroup:
     Type: AWS::Route53::RecordSetGroup
