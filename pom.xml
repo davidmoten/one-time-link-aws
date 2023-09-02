@@ -21,7 +21,6 @@
         <timestampSuffix>-${timestamp}</timestampSuffix>
         <siteBucketName>${application}-site-${aws.account.id.lowercase}</siteBucketName>
         <dataBucketName>${application}-data-${aws.account.id.lowercase}</dataBucketName>
-        <aws.sdk.version>1.11.1022</aws.sdk.version>
     </properties>
     <dependencies>
         <dependency>
