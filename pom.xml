@@ -5,7 +5,7 @@
     <groupId>com.github.davidmoten</groupId>
     <artifactId>one-time-link-aws</artifactId>
     <name>${project.artifactId}</name>
-    <version>1.0.24-SNAPSHOT</version>
+    <version>1.0.24</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <server.id>my.aws</server.id>
@@ -15,8 +15,8 @@
         <proxy.host></proxy.host>
         <!-- as long as proxy.host is blank this property won't be used -->
         <proxy.port>8080</proxy.port>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
         <timestamp>${maven.build.timestamp}</timestamp>
         <timestampSuffix>-${timestamp}</timestampSuffix>
         <siteBucketName>${application}-site-${aws.account.id.lowercase}</siteBucketName>
